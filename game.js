@@ -182,9 +182,11 @@ function updateTradeGoods() {
         div.innerHTML = `
             <span class="item-name">${good.emoji} ${good.name}</span>
             <span class="item-price">買: ${buyPrice}G / 売: ${sellPrice}G</span>
-            <div style="display: flex; gap: 5px;">
+            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
                 <button class="btn btn-buy" onclick="buyGood('${goodId}')">買う</button>
+                <button class="btn btn-buy" onclick="buyAllGood('${goodId}')">全部買う</button>
                 <button class="btn btn-sell" onclick="sellGood('${goodId}')" ${!hasItem ? 'disabled' : ''}>売る</button>
+                <button class="btn btn-sell" onclick="sellAllGood('${goodId}')" ${!hasItem ? 'disabled' : ''}>全部売る</button>
             </div>
         `;
         tradeDiv.appendChild(div);
@@ -281,6 +283,37 @@ function buyGood(goodId) {
     updateAll();
 }
 
+function buyAllGood(goodId) {
+    const price = getPrice(goodId, true);
+    const good = goods[goodId];
+
+    // Calculate how many we can buy based on money
+    const maxByMoney = Math.floor(gameState.gold / price);
+
+    // Calculate how many we can buy based on cargo space
+    const maxByCargo = getCargoSpace();
+
+    // Take the minimum of both constraints
+    const maxCanBuy = Math.min(maxByMoney, maxByCargo);
+
+    if (maxCanBuy < 1) {
+        if (gameState.gold < price) {
+            addLog(`❌ 資金が足りません！(必要: ${price}G)`);
+        } else {
+            addLog('❌ 船の積載量が一杯です！');
+        }
+        return;
+    }
+
+    const totalCost = maxCanBuy * price;
+    gameState.gold -= totalCost;
+    gameState.inventory[goodId] = (gameState.inventory[goodId] || 0) + maxCanBuy;
+
+    addLog(`✅ ${good.emoji} ${good.name}を${maxCanBuy}個、合計${totalCost}Gで購入しました。`);
+
+    updateAll();
+}
+
 function sellGood(goodId) {
     if (!gameState.inventory[goodId] || gameState.inventory[goodId] < 1) {
         addLog('❌ その商品を持っていません！');
@@ -293,6 +326,30 @@ function sellGood(goodId) {
 
     const good = goods[goodId];
     addLog(`💰 ${good.emoji} ${good.name}を${price}Gで売却しました。`);
+
+    // Add animation to gold
+    const goldElement = document.getElementById('gold');
+    goldElement.classList.add('gold-animation');
+    setTimeout(() => goldElement.classList.remove('gold-animation'), 500);
+
+    updateAll();
+}
+
+function sellAllGood(goodId) {
+    if (!gameState.inventory[goodId] || gameState.inventory[goodId] < 1) {
+        addLog('❌ その商品を持っていません！');
+        return;
+    }
+
+    const price = getPrice(goodId, false);
+    const quantity = gameState.inventory[goodId];
+    const totalRevenue = quantity * price;
+
+    gameState.gold += totalRevenue;
+    gameState.inventory[goodId] = 0;
+
+    const good = goods[goodId];
+    addLog(`💰 ${good.emoji} ${good.name}を${quantity}個、合計${totalRevenue}Gで売却しました。`);
 
     // Add animation to gold
     const goldElement = document.getElementById('gold');
@@ -362,6 +419,8 @@ window.addEventListener('DOMContentLoaded', initGame);
 
 // Make functions globally accessible
 window.buyGood = buyGood;
+window.buyAllGood = buyAllGood;
 window.sellGood = sellGood;
+window.sellAllGood = sellAllGood;
 window.travelTo = travelTo;
 window.upgradeShip = upgradeShip;
