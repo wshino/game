@@ -7,7 +7,8 @@ const gameState = {
         name: 'カラベル船',
         capacity: 50,
         speed: 1
-    }
+    },
+    logs: []
 };
 
 // Port Definitions
@@ -104,6 +105,53 @@ const shipUpgrades = [
     }
 ];
 
+// Save & Load Functions
+function saveGame() {
+    try {
+        localStorage.setItem('daikokaiGameSave', JSON.stringify(gameState));
+        console.log('ゲームをセーブしました');
+    } catch (e) {
+        console.error('セーブに失敗しました:', e);
+    }
+}
+
+function loadGame() {
+    try {
+        const saved = localStorage.getItem('daikokaiGameSave');
+        if (saved) {
+            const loadedState = JSON.parse(saved);
+            // Load all saved state
+            gameState.gold = loadedState.gold;
+            gameState.currentPort = loadedState.currentPort;
+            gameState.inventory = loadedState.inventory || {};
+            gameState.ship = loadedState.ship;
+            gameState.logs = loadedState.logs || [];
+
+            // Restore logs to UI
+            const logDiv = document.getElementById('game-log');
+            logDiv.innerHTML = '';
+            gameState.logs.forEach(log => {
+                const p = document.createElement('p');
+                p.textContent = log;
+                logDiv.appendChild(p);
+            });
+
+            addLog('💾 前回のセーブデータを読み込みました！');
+            return true;
+        }
+    } catch (e) {
+        console.error('ロードに失敗しました:', e);
+    }
+    return false;
+}
+
+function clearSave() {
+    if (confirm('セーブデータを削除して最初からやり直しますか？')) {
+        localStorage.removeItem('daikokaiGameSave');
+        location.reload();
+    }
+}
+
 // Helper Functions
 function getCurrentPortName() {
     return ports[gameState.currentPort].name;
@@ -134,6 +182,13 @@ function addLog(message) {
     p.textContent = message;
     logDiv.appendChild(p);
     logDiv.scrollTop = logDiv.scrollHeight;
+
+    // Save log to gameState
+    gameState.logs.push(message);
+    // Keep only last 50 logs to prevent excessive storage
+    if (gameState.logs.length > 50) {
+        gameState.logs.shift();
+    }
 }
 
 // Update UI Functions
@@ -258,6 +313,7 @@ function updateAll() {
     updateTradeGoods();
     updatePorts();
     updateUpgrades();
+    saveGame(); // Auto-save after any state change
 }
 
 // Game Actions
@@ -408,9 +464,14 @@ function upgradeShip(shipIndex) {
 
 // Initialize Game
 function initGame() {
-    addLog('🌊 大航海時代へようこそ！');
-    addLog('💡 各港で商品を安く買い、高く売って利益を得ましょう。');
-    addLog('💡 資金を貯めて、より大きな船にアップグレードしましょう！');
+    const loaded = loadGame();
+
+    if (!loaded) {
+        addLog('🌊 大航海時代へようこそ！');
+        addLog('💡 各港で商品を安く買い、高く売って利益を得ましょう。');
+        addLog('💡 資金を貯めて、より大きな船にアップグレードしましょう！');
+    }
+
     updateAll();
 }
 
@@ -424,3 +485,4 @@ window.sellGood = sellGood;
 window.sellAllGood = sellAllGood;
 window.travelTo = travelTo;
 window.upgradeShip = upgradeShip;
+window.clearSave = clearSave;
