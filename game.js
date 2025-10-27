@@ -108,8 +108,10 @@ const shipUpgrades = [
 // Save & Load Functions
 function saveGame() {
     try {
-        localStorage.setItem('daikokaiGameSave', JSON.stringify(gameState));
-        console.log('ゲームをセーブしました');
+        const saveData = JSON.stringify(gameState);
+        localStorage.setItem('daikokaiGameSave', saveData);
+        console.log('ゲームをセーブしました - 資金:', gameState.gold);
+        console.log('保存データ:', saveData.substring(0, 200) + '...');
     } catch (e) {
         console.error('セーブに失敗しました:', e);
     }
@@ -118,14 +120,21 @@ function saveGame() {
 function loadGame() {
     try {
         const saved = localStorage.getItem('daikokaiGameSave');
+        console.log('ロード試行 - saved:', saved ? '存在する' : 'なし');
+
         if (saved) {
             const loadedState = JSON.parse(saved);
+            console.log('ロードしたデータ - 資金:', loadedState.gold);
+            console.log('ロードしたデータ:', JSON.stringify(loadedState).substring(0, 200) + '...');
+
             // Load all saved state
             gameState.gold = loadedState.gold;
             gameState.currentPort = loadedState.currentPort;
             gameState.inventory = loadedState.inventory || {};
             gameState.ship = loadedState.ship;
             gameState.logs = loadedState.logs || [];
+
+            console.log('gameState更新後 - 資金:', gameState.gold);
 
             // Restore logs to UI
             const logDiv = document.getElementById('game-log');
