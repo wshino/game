@@ -222,9 +222,21 @@ function refreshPortInventory(daysPassed) {
         const maxStock = inventorySettings[portSize].maxStock;
 
         for (const goodId in portInventory[portId]) {
+            let currentStock = portInventory[portId][goodId];
+
+            // For water and food, ensure minimum stock based on port size (handles old save data)
+            if ((goodId === 'water' || goodId === 'food') && currentStock === 0) {
+                // Reset to initial values if completely depleted
+                if (portSize === 'small') {
+                    currentStock = Math.round(maxStock * 0.3);
+                } else {
+                    currentStock = maxStock;
+                }
+            }
+
             const recovered = Math.min(
                 maxStock,
-                portInventory[portId][goodId] + (refreshRate * daysPassed)
+                currentStock + (refreshRate * daysPassed)
             );
             portInventory[portId][goodId] = Math.round(recovered);
         }
@@ -288,35 +300,6 @@ function loadGame() {
             if (loadedState.portInventory) {
                 for (const portId in loadedState.portInventory) {
                     portInventory[portId] = loadedState.portInventory[portId];
-                }
-
-                // Fix water and food inventory for ports (in case of old save data)
-                for (const portId in ports) {
-                    if (!portInventory[portId]) {
-                        portInventory[portId] = {};
-                    }
-
-                    const portSize = ports[portId].size;
-                    const maxStock = inventorySettings[portSize].maxStock;
-
-                    // Ensure water and food have proper initial values
-                    for (const goodId in goods) {
-                        if (goodId === 'water' || goodId === 'food') {
-                            // If water or food is missing or 0, reset to initial value
-                            if (!portInventory[portId][goodId] || portInventory[portId][goodId] === 0) {
-                                if (portSize === 'small') {
-                                    portInventory[portId][goodId] = Math.round(maxStock * 0.3);
-                                } else {
-                                    portInventory[portId][goodId] = maxStock;
-                                }
-                            }
-                        } else {
-                            // Initialize other goods if missing
-                            if (!portInventory[portId][goodId]) {
-                                portInventory[portId][goodId] = maxStock;
-                            }
-                        }
-                    }
                 }
             } else {
                 // Initialize if old save
