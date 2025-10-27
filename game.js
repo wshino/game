@@ -410,22 +410,53 @@ function updateInventory() {
     const inventoryDiv = document.getElementById('inventory');
     inventoryDiv.innerHTML = '';
 
-    if (Object.keys(gameState.inventory).length === 0) {
-        inventoryDiv.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #666;">在庫なし</p>';
-        return;
-    }
+    // Calculate total value and display summary
+    let totalValue = 0;
+    let totalItems = 0;
+    const inventoryItems = [];
 
     for (const [goodId, qty] of Object.entries(gameState.inventory)) {
         if (qty > 0) {
             const good = goods[goodId];
-            const div = document.createElement('div');
-            div.className = 'inventory-item';
-            div.innerHTML = `
-                <div class="inventory-item-name">${good.emoji} ${good.name}</div>
-                <div class="inventory-item-qty">${qty}個</div>
-            `;
-            inventoryDiv.appendChild(div);
+            const sellPrice = getPrice(goodId, false);
+            const itemValue = sellPrice * qty;
+            totalValue += itemValue;
+            totalItems += qty;
+            inventoryItems.push({ goodId, good, qty, sellPrice, itemValue });
         }
+    }
+
+    if (inventoryItems.length === 0) {
+        inventoryDiv.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #666;">在庫なし</p>';
+        return;
+    }
+
+    // Add summary section
+    const summaryDiv = document.createElement('div');
+    summaryDiv.style.cssText = 'grid-column: 1/-1; background: rgba(255, 215, 0, 0.15); padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 2px solid #ffd700;';
+    summaryDiv.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="font-weight: bold; color: #1e3c72;">
+                📦 積載: ${totalItems}/${gameState.ship.capacity} (${Math.round(totalItems/gameState.ship.capacity*100)}%)
+            </div>
+            <div style="font-weight: bold; color: #d4af37;">
+                💰 売却可能額: ${totalValue.toLocaleString()}G
+            </div>
+        </div>
+    `;
+    inventoryDiv.appendChild(summaryDiv);
+
+    // Display each item with details
+    for (const item of inventoryItems) {
+        const div = document.createElement('div');
+        div.className = 'inventory-item';
+        div.innerHTML = `
+            <div class="inventory-item-name">${item.good.emoji} ${item.good.name}</div>
+            <div class="inventory-item-qty">${item.qty}個</div>
+            <div class="inventory-item-value">売値: ${item.sellPrice.toLocaleString()}G/個</div>
+            <div class="inventory-item-total">計: ${item.itemValue.toLocaleString()}G</div>
+        `;
+        inventoryDiv.appendChild(div);
     }
 }
 
