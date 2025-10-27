@@ -12,49 +12,56 @@ const gameState = {
     gameTime: 0 // Game time in days
 };
 
-// Port Definitions
+// Port Definitions (based on historical 15-16th century city sizes)
 const ports = {
     lisbon: {
         name: 'リスボン',
         emoji: '🇵🇹',
         description: 'ポルトガルの首都。冒険の始まりの地。',
-        size: 'large' // 大規模港
+        size: 'large', // 大規模港 (人口10万人以上、大航海時代の中心地)
+        historicalNote: '15世紀末から16世紀にかけて、大航海時代の中心として急成長。人口10万人超。'
     },
     seville: {
         name: 'セビリア',
         emoji: '🇪🇸',
         description: 'スペインの港町。新大陸への玄関口。',
-        size: 'large'
+        size: 'large', // 大規模港 (新大陸貿易独占港、人口10万人規模)
+        historicalNote: '16世紀、新大陸との貿易を独占し、スペイン随一の商業都市に成長。'
     },
     venice: {
         name: 'ヴェネツィア',
         emoji: '🇮🇹',
         description: '水の都。東方貿易の中心地。',
-        size: 'medium' // 中規模港
+        size: 'very_large', // 最大規模港 (人口15-18万人、当時のヨーロッパ最大級都市)
+        historicalNote: '15世紀、人口15-18万人を擁し、地中海貿易を支配する最大級の商業共和国。'
     },
     alexandria: {
         name: 'アレクサンドリア',
         emoji: '🇪🇬',
         description: 'エジプトの古都。香辛料の集積地。',
-        size: 'medium'
+        size: 'medium', // 中規模港 (マムルーク朝/オスマン朝下で往時より衰退)
+        historicalNote: '15世紀マムルーク朝下で往時の栄華からは衰退も、依然として香辛料貿易の要衝。'
     },
     calicut: {
         name: 'カリカット',
         emoji: '🇮🇳',
         description: 'インドの港町。胡椒の産地。',
-        size: 'small' // 小規模港
+        size: 'medium', // 中規模港 (インド西海岸の重要な香辛料貿易港)
+        historicalNote: '15-16世紀、インド西海岸最大の香辛料貿易港。ヴァスコ・ダ・ガマが到達。'
     },
     malacca: {
         name: 'マラッカ',
         emoji: '🇲🇾',
         description: '東南アジアの交易拠点。',
-        size: 'medium'
+        size: 'medium', // 中規模港 (マラッカ王国の首都、東南アジア貿易の中心)
+        historicalNote: '15世紀、マラッカ王国の首都として東西貿易の要衝。1511年ポルトガルに征服。'
     },
     nagasaki: {
         name: '長崎',
         emoji: '🇯🇵',
         description: '日本の港町。銀と絹の取引が盛ん。',
-        size: 'medium'
+        size: 'small', // 小規模港 (16世紀半ばまで小さな漁村、1570年代に貿易港化)
+        historicalNote: '1570年代、ポルトガル貿易の拠点として開港。それまでは小さな漁村。'
     }
 };
 
@@ -72,11 +79,12 @@ const portDistances = {
     nagasaki: { lisbon: 30, seville: 29, venice: 27, alexandria: 25, calicut: 15, malacca: 10, nagasaki: 0 }
 };
 
-// Inventory settings by port size
+// Inventory settings by port size (based on historical trade volume)
 const inventorySettings = {
-    small: { maxStock: 30, refreshRate: 3 },   // 小規模港: 最大30個、1日3個回復
-    medium: { maxStock: 60, refreshRate: 5 },  // 中規模港: 最大60個、1日5個回復
-    large: { maxStock: 100, refreshRate: 8 }   // 大規模港: 最大100個、1日8個回復
+    small: { maxStock: 30, refreshRate: 3 },      // 小規模港: 最大30個、1日3個回復 (長崎)
+    medium: { maxStock: 60, refreshRate: 5 },     // 中規模港: 最大60個、1日5個回復 (アレクサンドリア、カリカット、マラッカ)
+    large: { maxStock: 100, refreshRate: 8 },     // 大規模港: 最大100個、1日8個回復 (リスボン、セビリア)
+    very_large: { maxStock: 150, refreshRate: 12 } // 最大規模港: 最大150個、1日12個回復 (ヴェネツィア)
 };
 
 // Goods Definitions with base prices
