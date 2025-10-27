@@ -11,7 +11,8 @@ const gameState = {
     },
     logs: [],
     gameTime: 0, // Game time in days
-    isVoyaging: false // Flag to track if currently on a voyage
+    isVoyaging: false, // Flag to track if currently on a voyage
+    selectedDestination: null // Selected destination port before voyage
 };
 
 // Port Definitions (based on historical 15-16th century city sizes)
@@ -462,6 +463,49 @@ function updatePorts() {
     const portsDiv = document.getElementById('ports');
     portsDiv.innerHTML = '';
 
+    // Add voyage start button if destination is selected
+    if (gameState.selectedDestination) {
+        const selectedPort = ports[gameState.selectedDestination];
+        const travelCost = Math.round(50 / gameState.ship.speed);
+        const baseDays = portDistances[gameState.currentPort][gameState.selectedDestination];
+        const travelDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
+        const required = calculateRequiredSupplies(travelDays);
+        const suppliesCheck = hasEnoughSupplies(travelDays);
+
+        const voyageDiv = document.createElement('div');
+        voyageDiv.style.cssText = 'background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 2px solid #2196f3;';
+        voyageDiv.innerHTML = `
+            <div style="margin-bottom: 10px;">
+                <strong style="color: #1976d2; font-size: 1.1em;">🗺️ 選択中: ${selectedPort.emoji} ${selectedPort.name}</strong>
+                <div style="font-size: 0.85em; color: #555; margin-top: 5px;">
+                    費用: ${travelCost}G | 日数: ${travelDays}日 | 必要物資: 🍖${required.food} 💧${required.water}
+                </div>
+                ${!suppliesCheck.hasEnough ? `
+                    <div style="font-size: 0.85em; color: #d32f2f; margin-top: 5px;">
+                        ⚠️ 物資不足: 食糧${suppliesCheck.current.food}/${required.food}、水${suppliesCheck.current.water}/${required.water}
+                    </div>
+                ` : ''}
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-travel" onclick="startSelectedVoyage()" ${!suppliesCheck.hasEnough ? 'disabled' : ''} style="flex: 1;">
+                    ⛵ 航海を開始する
+                </button>
+                <button class="btn btn-sell" onclick="cancelDestination()" style="flex: 0 0 auto;">
+                    キャンセル
+                </button>
+            </div>
+        `;
+        portsDiv.appendChild(voyageDiv);
+    }
+
+    // Add separator if destination is selected
+    if (gameState.selectedDestination) {
+        const separator = document.createElement('div');
+        separator.style.cssText = 'border-top: 1px solid #ddd; margin: 15px 0; padding-top: 15px;';
+        separator.innerHTML = '<div style="font-size: 0.9em; color: #666; margin-bottom: 10px;">他の航海先:</div>';
+        portsDiv.appendChild(separator);
+    }
+
     for (const [portId, port] of Object.entries(ports)) {
         if (portId === gameState.currentPort) continue;
 
@@ -474,20 +518,19 @@ function updatePorts() {
 
         // Calculate required supplies
         const required = calculateRequiredSupplies(travelDays);
-        const suppliesCheck = hasEnoughSupplies(travelDays);
-        const hasSupplies = suppliesCheck.hasEnough;
+
+        const isSelected = gameState.selectedDestination === portId;
 
         div.innerHTML = `
             <div style="flex: 1;">
                 <span class="item-name">${port.emoji} ${port.name}</span>
                 <span style="font-size: 0.9em; color: #666; display: block;">${port.description}</span>
-                <span style="font-size: 0.85em; color: ${hasSupplies ? '#666' : '#d32f2f'}; display: block; margin-top: 5px;">
-                    必要物資: 🍖${required.food} 💧${required.water}
-                    ${!hasSupplies ? '(不足)' : ''}
+                <span style="font-size: 0.85em; color: #666; display: block; margin-top: 5px;">
+                    必要物資: 🍖${required.food} 💧${required.water} | 費用: ${travelCost}G | 日数: ${travelDays}日
                 </span>
             </div>
-            <button class="btn btn-travel" onclick="travelTo('${portId}')" ${!hasSupplies ? 'disabled' : ''}>
-                航海 (${travelCost}G / ${travelDays}日)
+            <button class="btn btn-travel" onclick="selectDestination('${portId}')" ${isSelected ? 'disabled' : ''}>
+                ${isSelected ? '選択中' : '選択'}
             </button>
         `;
         portsDiv.appendChild(div);
@@ -778,31 +821,12 @@ function startVoyage(destinationPortId) {
     const baseDays = portDistances[gameState.currentPort][destinationPortId];
     const estimatedDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
 
-    // Auto-supply food and water for the voyage
-    const supplyResult = autoSupplyForVoyage(estimatedDays);
-
-    if (supplyResult.success && !supplyResult.alreadyEnough) {
-        // Successfully auto-supplied
-        addLog(`⚓ 航海に必要な物資を自動補給しました`);
-        if (supplyResult.boughtFood > 0) {
-            addLog(`  食糧: ${supplyResult.boughtFood}個を補給`);
-        }
-        if (supplyResult.boughtWater > 0) {
-            addLog(`  水: ${supplyResult.boughtWater}個を補給`);
-        }
-        updateAll();
-    }
-
-    // Check supplies after auto-supply attempt
+    // Check supplies
     const suppliesCheck = hasEnoughSupplies(estimatedDays);
     if (!suppliesCheck.hasEnough) {
         addLog(`❌ 物資が不足しています！`);
         addLog(`必要: 食糧${suppliesCheck.required.food}個、水${suppliesCheck.required.water}個`);
         addLog(`現在: 食糧${suppliesCheck.current.food}個、水${suppliesCheck.current.water}個`);
-        if (supplyResult.boughtFood > 0 || supplyResult.boughtWater > 0) {
-            addLog(`💡 ${supplyResult.boughtFood}個の食糧と${supplyResult.boughtWater}個の水を補給しましたが、まだ不足しています。`);
-            addLog(`資金、積載量、または港の在庫を確認してください。`);
-        }
         return;
     }
 
@@ -812,6 +836,8 @@ function startVoyage(destinationPortId) {
 
     const oldPort = ports[gameState.currentPort].name;
     const newPort = ports[destinationPortId].name;
+
+    addLog(`⛵ ${newPort}に向けて出港します！`);
 
     // Show voyage modal
     showVoyageModal(oldPort, newPort, destinationPortId, estimatedDays);
@@ -940,6 +966,72 @@ function completeVoyage(destinationPortId, actualDays) {
         }
         updateAll();
     }, 2000);
+}
+
+// Select destination and auto-supply, but don't start voyage yet
+function selectDestination(portId) {
+    if (gameState.isVoyaging) {
+        return; // Prevent selection during voyage
+    }
+
+    // Calculate required supplies
+    const baseDays = portDistances[gameState.currentPort][portId];
+    const estimatedDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
+
+    // Auto-supply food and water
+    const supplyResult = autoSupplyForVoyage(estimatedDays);
+
+    // Set selected destination
+    gameState.selectedDestination = portId;
+
+    if (supplyResult.success && !supplyResult.alreadyEnough) {
+        addLog(`⚓ ${ports[portId].name}への航海に必要な物資を補給しました`);
+        if (supplyResult.boughtFood > 0) {
+            addLog(`  食糧: ${supplyResult.boughtFood}個を補給`);
+        }
+        if (supplyResult.boughtWater > 0) {
+            addLog(`  水: ${supplyResult.boughtWater}個を補給`);
+        }
+        addLog(`💼 商品を積んだら「航海を開始する」ボタンで出発してください`);
+    } else if (supplyResult.success && supplyResult.alreadyEnough) {
+        addLog(`⚓ ${ports[portId].name}を航海先に選択しました`);
+        addLog(`💼 商品を積んだら「航海を開始する」ボタンで出発してください`);
+    } else {
+        // Could not supply enough
+        addLog(`⚠️ ${ports[portId].name}への航海に必要な物資を十分に補給できませんでした`);
+        if (supplyResult.boughtFood > 0 || supplyResult.boughtWater > 0) {
+            addLog(`  補給した: 食糧${supplyResult.boughtFood}個、水${supplyResult.boughtWater}個`);
+        }
+        addLog(`  まだ不足: 食糧${supplyResult.required.food - supplyResult.current.food}個、水${supplyResult.required.water - supplyResult.current.water}個`);
+        addLog(`💡 資金、積載量、または港の在庫を確認してください`);
+    }
+
+    updateAll();
+}
+
+// Start voyage to selected destination
+function startSelectedVoyage() {
+    if (!gameState.selectedDestination) {
+        addLog('❌ 航海先が選択されていません');
+        return;
+    }
+
+    const destinationPortId = gameState.selectedDestination;
+
+    // Clear selection
+    gameState.selectedDestination = null;
+
+    // Start the voyage (this will check supplies again)
+    startVoyage(destinationPortId);
+}
+
+// Cancel selected destination
+function cancelDestination() {
+    if (gameState.selectedDestination) {
+        addLog(`🚫 ${ports[gameState.selectedDestination].name}への航海を取り消しました`);
+        gameState.selectedDestination = null;
+        updateAll();
+    }
 }
 
 function travelTo(portId) {
