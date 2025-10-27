@@ -694,6 +694,78 @@ function consumeSupplies(days) {
     gameState.inventory.water = Math.max(0, (gameState.inventory.water || 0) - required.water);
 }
 
+// Automatically buy supplies without logging (used for auto-supply)
+function buySupply(goodId, amount) {
+    const price = getPrice(goodId, true);
+    const portStock = getPortStock(gameState.currentPort, goodId);
+
+    // Calculate how many we can buy based on constraints
+    const maxByMoney = Math.floor(gameState.gold / price);
+    const maxByCargo = getCargoSpace();
+    const maxByStock = portStock;
+    const maxCanBuy = Math.min(amount, maxByMoney, maxByCargo, maxByStock);
+
+    if (maxCanBuy < 1) {
+        return 0;
+    }
+
+    const totalCost = maxCanBuy * price;
+    gameState.gold -= totalCost;
+    gameState.inventory[goodId] = (gameState.inventory[goodId] || 0) + maxCanBuy;
+    reducePortStock(gameState.currentPort, goodId, maxCanBuy);
+
+    return maxCanBuy;
+}
+
+// Automatically supply food and water for voyage
+function autoSupplyForVoyage(days) {
+    const required = calculateRequiredSupplies(days);
+    const currentFood = gameState.inventory.food || 0;
+    const currentWater = gameState.inventory.water || 0;
+
+    const needFood = Math.max(0, required.food - currentFood);
+    const needWater = Math.max(0, required.water - currentWater);
+
+    if (needFood === 0 && needWater === 0) {
+        return { success: true, alreadyEnough: true };
+    }
+
+    // Try to buy needed supplies
+    let boughtFood = 0;
+    let boughtWater = 0;
+
+    // Buy food
+    if (needFood > 0) {
+        boughtFood = buySupply('food', needFood);
+    }
+
+    // Buy water
+    if (needWater > 0) {
+        boughtWater = buySupply('water', needWater);
+    }
+
+    // Check if we now have enough
+    const finalFood = gameState.inventory.food || 0;
+    const finalWater = gameState.inventory.water || 0;
+
+    if (finalFood >= required.food && finalWater >= required.water) {
+        return {
+            success: true,
+            alreadyEnough: false,
+            boughtFood,
+            boughtWater
+        };
+    } else {
+        return {
+            success: false,
+            boughtFood,
+            boughtWater,
+            required,
+            current: { food: finalFood, water: finalWater }
+        };
+    }
+}
+
 function startVoyage(destinationPortId) {
     const travelCost = Math.round(50 / gameState.ship.speed);
 
@@ -706,12 +778,31 @@ function startVoyage(destinationPortId) {
     const baseDays = portDistances[gameState.currentPort][destinationPortId];
     const estimatedDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
 
-    // Check supplies
+    // Auto-supply food and water for the voyage
+    const supplyResult = autoSupplyForVoyage(estimatedDays);
+
+    if (supplyResult.success && !supplyResult.alreadyEnough) {
+        // Successfully auto-supplied
+        addLog(`⚓ 航海に必要な物資を自動補給しました`);
+        if (supplyResult.boughtFood > 0) {
+            addLog(`  食糧: ${supplyResult.boughtFood}個を補給`);
+        }
+        if (supplyResult.boughtWater > 0) {
+            addLog(`  水: ${supplyResult.boughtWater}個を補給`);
+        }
+        updateAll();
+    }
+
+    // Check supplies after auto-supply attempt
     const suppliesCheck = hasEnoughSupplies(estimatedDays);
     if (!suppliesCheck.hasEnough) {
         addLog(`❌ 物資が不足しています！`);
         addLog(`必要: 食糧${suppliesCheck.required.food}個、水${suppliesCheck.required.water}個`);
         addLog(`現在: 食糧${suppliesCheck.current.food}個、水${suppliesCheck.current.water}個`);
+        if (supplyResult.boughtFood > 0 || supplyResult.boughtWater > 0) {
+            addLog(`💡 ${supplyResult.boughtFood}個の食糧と${supplyResult.boughtWater}個の水を補給しましたが、まだ不足しています。`);
+            addLog(`資金、積載量、または港の在庫を確認してください。`);
+        }
         return;
     }
 
