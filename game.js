@@ -714,7 +714,7 @@ function showVoyageModal(fromPort, toPort, destinationPortId, estimatedDays) {
                 </div>
             </div>
             <div class="voyage-animation">
-                <div id="voyage-ship" class="voyage-ship">⛵</div>
+                <div id="voyage-ship" class="voyage-ship">🚢</div>
                 <div id="voyage-weather-effect" class="weather-effect"></div>
             </div>
             <div id="voyage-log" class="voyage-log"></div>
