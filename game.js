@@ -8,46 +8,83 @@ const gameState = {
         capacity: 50,
         speed: 1
     },
-    logs: []
+    logs: [],
+    gameTime: 0 // Game time in days
 };
 
-// Port Definitions
+// Port Definitions (based on historical 15-16th century city sizes)
 const ports = {
     lisbon: {
         name: 'リスボン',
         emoji: '🇵🇹',
-        description: 'ポルトガルの首都。冒険の始まりの地。'
+        description: 'ポルトガルの首都。冒険の始まりの地。',
+        size: 'large', // 大規模港 (人口10万人以上、大航海時代の中心地)
+        historicalNote: '15世紀末から16世紀にかけて、大航海時代の中心として急成長。人口10万人超。'
     },
     seville: {
         name: 'セビリア',
         emoji: '🇪🇸',
-        description: 'スペインの港町。新大陸への玄関口。'
+        description: 'スペインの港町。新大陸への玄関口。',
+        size: 'large', // 大規模港 (新大陸貿易独占港、人口10万人規模)
+        historicalNote: '16世紀、新大陸との貿易を独占し、スペイン随一の商業都市に成長。'
     },
     venice: {
         name: 'ヴェネツィア',
         emoji: '🇮🇹',
-        description: '水の都。東方貿易の中心地。'
+        description: '水の都。東方貿易の中心地。',
+        size: 'very_large', // 最大規模港 (人口15-18万人、当時のヨーロッパ最大級都市)
+        historicalNote: '15世紀、人口15-18万人を擁し、地中海貿易を支配する最大級の商業共和国。'
     },
     alexandria: {
         name: 'アレクサンドリア',
         emoji: '🇪🇬',
-        description: 'エジプトの古都。香辛料の集積地。'
+        description: 'エジプトの古都。香辛料の集積地。',
+        size: 'medium', // 中規模港 (マムルーク朝/オスマン朝下で往時より衰退)
+        historicalNote: '15世紀マムルーク朝下で往時の栄華からは衰退も、依然として香辛料貿易の要衝。'
     },
     calicut: {
         name: 'カリカット',
         emoji: '🇮🇳',
-        description: 'インドの港町。胡椒の産地。'
+        description: 'インドの港町。胡椒の産地。',
+        size: 'medium', // 中規模港 (インド西海岸の重要な香辛料貿易港)
+        historicalNote: '15-16世紀、インド西海岸最大の香辛料貿易港。ヴァスコ・ダ・ガマが到達。'
     },
     malacca: {
         name: 'マラッカ',
         emoji: '🇲🇾',
-        description: '東南アジアの交易拠点。'
+        description: '東南アジアの交易拠点。',
+        size: 'medium', // 中規模港 (マラッカ王国の首都、東南アジア貿易の中心)
+        historicalNote: '15世紀、マラッカ王国の首都として東西貿易の要衝。1511年ポルトガルに征服。'
     },
     nagasaki: {
         name: '長崎',
         emoji: '🇯🇵',
-        description: '日本の港町。銀と絹の取引が盛ん。'
+        description: '日本の港町。銀と絹の取引が盛ん。',
+        size: 'small', // 小規模港 (16世紀半ばまで小さな漁村、1570年代に貿易港化)
+        historicalNote: '1570年代、ポルトガル貿易の拠点として開港。それまでは小さな漁村。'
     }
+};
+
+// Port inventory state (initialized on game start)
+const portInventory = {};
+
+// Port distances (in days of travel at speed 1.0)
+const portDistances = {
+    lisbon: { lisbon: 0, seville: 2, venice: 5, alexandria: 7, calicut: 15, malacca: 20, nagasaki: 30 },
+    seville: { lisbon: 2, seville: 0, venice: 5, alexandria: 6, calicut: 14, malacca: 19, nagasaki: 29 },
+    venice: { lisbon: 5, seville: 5, venice: 0, alexandria: 3, calicut: 12, malacca: 17, nagasaki: 27 },
+    alexandria: { lisbon: 7, seville: 6, venice: 3, alexandria: 0, calicut: 10, malacca: 15, nagasaki: 25 },
+    calicut: { lisbon: 15, seville: 14, venice: 12, alexandria: 10, calicut: 0, malacca: 5, nagasaki: 15 },
+    malacca: { lisbon: 20, seville: 19, venice: 17, alexandria: 15, calicut: 5, malacca: 0, nagasaki: 10 },
+    nagasaki: { lisbon: 30, seville: 29, venice: 27, alexandria: 25, calicut: 15, malacca: 10, nagasaki: 0 }
+};
+
+// Inventory settings by port size (based on historical trade volume)
+const inventorySettings = {
+    small: { maxStock: 30, refreshRate: 3 },      // 小規模港: 最大30個、1日3個回復 (長崎)
+    medium: { maxStock: 60, refreshRate: 5 },     // 中規模港: 最大60個、1日5個回復 (アレクサンドリア、カリカット、マラッカ)
+    large: { maxStock: 100, refreshRate: 8 },     // 大規模港: 最大100個、1日8個回復 (リスボン、セビリア)
+    very_large: { maxStock: 150, refreshRate: 12 } // 最大規模港: 最大150個、1日12個回復 (ヴェネツィア)
 };
 
 // Goods Definitions with base prices
@@ -105,13 +142,61 @@ const shipUpgrades = [
     }
 ];
 
+// Inventory Management Functions
+function initializePortInventory() {
+    for (const portId in ports) {
+        portInventory[portId] = {};
+        const portSize = ports[portId].size;
+        const maxStock = inventorySettings[portSize].maxStock;
+
+        for (const goodId in goods) {
+            portInventory[portId][goodId] = maxStock;
+        }
+    }
+}
+
+function refreshPortInventory(daysPassed) {
+    for (const portId in portInventory) {
+        const portSize = ports[portId].size;
+        const refreshRate = inventorySettings[portSize].refreshRate;
+        const maxStock = inventorySettings[portSize].maxStock;
+
+        for (const goodId in portInventory[portId]) {
+            const recovered = Math.min(
+                maxStock,
+                portInventory[portId][goodId] + (refreshRate * daysPassed)
+            );
+            portInventory[portId][goodId] = Math.round(recovered);
+        }
+    }
+}
+
+function getPortStock(portId, goodId) {
+    if (!portInventory[portId] || !portInventory[portId][goodId]) {
+        return 0;
+    }
+    return portInventory[portId][goodId];
+}
+
+function reducePortStock(portId, goodId, amount) {
+    if (!portInventory[portId]) {
+        portInventory[portId] = {};
+    }
+    if (!portInventory[portId][goodId]) {
+        portInventory[portId][goodId] = 0;
+    }
+    portInventory[portId][goodId] = Math.max(0, portInventory[portId][goodId] - amount);
+}
+
 // Save & Load Functions
 function saveGame() {
     try {
-        const saveData = JSON.stringify(gameState);
-        localStorage.setItem('daikokaiGameSave', saveData);
-        console.log('ゲームをセーブしました - 資金:', gameState.gold);
-        console.log('保存データ:', saveData.substring(0, 200) + '...');
+        const saveData = {
+            ...gameState,
+            portInventory: portInventory
+        };
+        localStorage.setItem('daikokaiGameSave', JSON.stringify(saveData));
+        console.log('ゲームをセーブしました - 資金:', gameState.gold, '日数:', gameState.gameTime);
     } catch (e) {
         console.error('セーブに失敗しました:', e);
     }
@@ -124,8 +209,7 @@ function loadGame() {
 
         if (saved) {
             const loadedState = JSON.parse(saved);
-            console.log('ロードしたデータ - 資金:', loadedState.gold);
-            console.log('ロードしたデータ:', JSON.stringify(loadedState).substring(0, 200) + '...');
+            console.log('ロードしたデータ - 資金:', loadedState.gold, '日数:', loadedState.gameTime);
 
             // Load all saved state
             gameState.gold = loadedState.gold;
@@ -133,8 +217,19 @@ function loadGame() {
             gameState.inventory = loadedState.inventory || {};
             gameState.ship = loadedState.ship;
             gameState.logs = loadedState.logs || [];
+            gameState.gameTime = loadedState.gameTime || 0;
 
-            console.log('gameState更新後 - 資金:', gameState.gold);
+            // Load port inventory if available
+            if (loadedState.portInventory) {
+                for (const portId in loadedState.portInventory) {
+                    portInventory[portId] = loadedState.portInventory[portId];
+                }
+            } else {
+                // Initialize if old save
+                initializePortInventory();
+            }
+
+            console.log('gameState更新後 - 資金:', gameState.gold, '日数:', gameState.gameTime);
 
             // Restore logs to UI
             const logDiv = document.getElementById('game-log');
@@ -207,6 +302,12 @@ function updateStatusBar() {
     document.getElementById('cargo-space').textContent = getCargoUsed();
     document.querySelector('#cargo-space + .stat-unit').textContent = ` / ${gameState.ship.capacity}`;
     document.getElementById('current-port').textContent = getCurrentPortName();
+
+    // Update game time display
+    const timeElement = document.getElementById('game-time');
+    if (timeElement) {
+        timeElement.textContent = gameState.gameTime;
+    }
 }
 
 function updateInventory() {
@@ -240,15 +341,20 @@ function updateTradeGoods() {
         const buyPrice = getPrice(goodId, true);
         const sellPrice = getPrice(goodId, false);
         const hasItem = gameState.inventory[goodId] > 0;
+        const portStock = getPortStock(gameState.currentPort, goodId);
+        const outOfStock = portStock <= 0;
 
         const div = document.createElement('div');
         div.className = 'good-item';
         div.innerHTML = `
             <span class="item-name">${good.emoji} ${good.name}</span>
             <span class="item-price">買: ${buyPrice}G / 売: ${sellPrice}G</span>
+            <span style="font-size: 0.85em; color: ${outOfStock ? '#d32f2f' : '#666'};">
+                在庫: ${portStock}個
+            </span>
             <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                <button class="btn btn-buy" onclick="buyGood('${goodId}')">買う</button>
-                <button class="btn btn-buy" onclick="buyAllGood('${goodId}')">全部買う</button>
+                <button class="btn btn-buy" onclick="buyGood('${goodId}')" ${outOfStock ? 'disabled' : ''}>買う</button>
+                <button class="btn btn-buy" onclick="buyAllGood('${goodId}')" ${outOfStock ? 'disabled' : ''}>全部買う</button>
                 <button class="btn btn-sell" onclick="sellGood('${goodId}')" ${!hasItem ? 'disabled' : ''}>売る</button>
                 <button class="btn btn-sell" onclick="sellAllGood('${goodId}')" ${!hasItem ? 'disabled' : ''}>全部売る</button>
             </div>
@@ -268,12 +374,14 @@ function updatePorts() {
         div.className = 'port-item';
 
         const travelCost = Math.round(50 / gameState.ship.speed);
+        const baseDays = portDistances[gameState.currentPort][portId];
+        const travelDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
 
         div.innerHTML = `
             <span class="item-name">${port.emoji} ${port.name}</span>
             <span style="font-size: 0.9em; color: #666;">${port.description}</span>
             <button class="btn btn-travel" onclick="travelTo('${portId}')">
-                航海 (費用: ${travelCost}G)
+                航海 (費用: ${travelCost}G / ${travelDays}日)
             </button>
         `;
         portsDiv.appendChild(div);
@@ -328,6 +436,12 @@ function updateAll() {
 // Game Actions
 function buyGood(goodId) {
     const price = getPrice(goodId, true);
+    const portStock = getPortStock(gameState.currentPort, goodId);
+
+    if (portStock <= 0) {
+        addLog(`❌ ${goods[goodId].name}の在庫がありません！`);
+        return;
+    }
 
     if (gameState.gold < price) {
         addLog(`❌ 資金が足りません！(必要: ${price}G)`);
@@ -341,9 +455,10 @@ function buyGood(goodId) {
 
     gameState.gold -= price;
     gameState.inventory[goodId] = (gameState.inventory[goodId] || 0) + 1;
+    reducePortStock(gameState.currentPort, goodId, 1);
 
     const good = goods[goodId];
-    addLog(`✅ ${good.emoji} ${good.name}を${price}Gで購入しました。`);
+    addLog(`✅ ${good.emoji} ${good.name}を${price}Gで購入しました。(残り在庫: ${getPortStock(gameState.currentPort, goodId)})`);
 
     updateAll();
 }
@@ -351,6 +466,12 @@ function buyGood(goodId) {
 function buyAllGood(goodId) {
     const price = getPrice(goodId, true);
     const good = goods[goodId];
+    const portStock = getPortStock(gameState.currentPort, goodId);
+
+    if (portStock <= 0) {
+        addLog(`❌ ${good.name}の在庫がありません！`);
+        return;
+    }
 
     // Calculate how many we can buy based on money
     const maxByMoney = Math.floor(gameState.gold / price);
@@ -358,8 +479,11 @@ function buyAllGood(goodId) {
     // Calculate how many we can buy based on cargo space
     const maxByCargo = getCargoSpace();
 
-    // Take the minimum of both constraints
-    const maxCanBuy = Math.min(maxByMoney, maxByCargo);
+    // Calculate how many we can buy based on port stock
+    const maxByStock = portStock;
+
+    // Take the minimum of all constraints
+    const maxCanBuy = Math.min(maxByMoney, maxByCargo, maxByStock);
 
     if (maxCanBuy < 1) {
         if (gameState.gold < price) {
@@ -373,8 +497,9 @@ function buyAllGood(goodId) {
     const totalCost = maxCanBuy * price;
     gameState.gold -= totalCost;
     gameState.inventory[goodId] = (gameState.inventory[goodId] || 0) + maxCanBuy;
+    reducePortStock(gameState.currentPort, goodId, maxCanBuy);
 
-    addLog(`✅ ${good.emoji} ${good.name}を${maxCanBuy}個、合計${totalCost}Gで購入しました。`);
+    addLog(`✅ ${good.emoji} ${good.name}を${maxCanBuy}個、合計${totalCost}Gで購入しました。(残り在庫: ${getPortStock(gameState.currentPort, goodId)})`);
 
     updateAll();
 }
@@ -432,18 +557,29 @@ function travelTo(portId) {
         return;
     }
 
+    // Calculate travel time
+    const baseDays = portDistances[gameState.currentPort][portId];
+    const travelDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
+
     gameState.gold -= travelCost;
 
     const oldPort = ports[gameState.currentPort].name;
     gameState.currentPort = portId;
     const newPort = ports[portId].name;
 
+    // Advance time
+    gameState.gameTime += travelDays;
+
+    // Refresh port inventories based on time passed
+    refreshPortInventory(travelDays);
+
     // Sailing animation
     const ship = document.getElementById('ship-sprite');
     ship.classList.add('sailing');
 
-    addLog(`⛵ ${oldPort}から${newPort}へ航海しました！(費用: ${travelCost}G)`);
+    addLog(`⛵ ${oldPort}から${newPort}へ航海しました！(費用: ${travelCost}G / ${travelDays}日経過)`);
     addLog(`🏖️ ${ports[portId].emoji} ${newPort}に到着！${ports[portId].description}`);
+    addLog(`📅 現在の日数: ${gameState.gameTime}日目`);
 
     updateAll();
 }
@@ -476,8 +612,12 @@ function initGame() {
     const loaded = loadGame();
 
     if (!loaded) {
+        // Initialize port inventory for new game
+        initializePortInventory();
+
         addLog('🌊 大航海時代へようこそ！');
         addLog('💡 各港で商品を安く買い、高く売って利益を得ましょう。');
+        addLog('💡 港の在庫は限られています。時間が経つと在庫が回復します。');
         addLog('💡 資金を貯めて、より大きな船にアップグレードしましょう！');
     }
 
