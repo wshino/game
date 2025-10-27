@@ -6,10 +6,12 @@ const gameState = {
     ship: {
         name: 'カラベル船',
         capacity: 50,
-        speed: 1
+        speed: 1,
+        crew: 20
     },
     logs: [],
-    gameTime: 0 // Game time in days
+    gameTime: 0, // Game time in days
+    isVoyaging: false // Flag to track if currently on a voyage
 };
 
 // Port Definitions (based on historical 15-16th century city sizes)
@@ -96,18 +98,60 @@ const goods = {
     gold_ore: { name: '金鉱石', emoji: '🏆', basePrice: 300 },
     porcelain: { name: '陶器', emoji: '🏺', basePrice: 120 },
     tea: { name: '茶', emoji: '🍵', basePrice: 100 },
-    silver: { name: '銀', emoji: '💍', basePrice: 250 }
+    silver: { name: '銀', emoji: '💍', basePrice: 250 },
+    // Essential supplies
+    food: { name: '食糧', emoji: '🍖', basePrice: 5 },
+    water: { name: '水', emoji: '💧', basePrice: 3 }
+};
+
+// Weather system
+const weatherTypes = {
+    sunny: {
+        name: '晴天',
+        emoji: '☀️',
+        speedMultiplier: 1.0,
+        description: '穏やかな航海日和',
+        probability: 0.4
+    },
+    favorable: {
+        name: '順風',
+        emoji: '🌬️',
+        speedMultiplier: 1.2,
+        description: '追い風を受けて快調',
+        probability: 0.2
+    },
+    westerlies: {
+        name: '偏西風',
+        emoji: '🍃',
+        speedMultiplier: 0.9, // Will vary by direction
+        description: '強い西風が吹いている',
+        probability: 0.15
+    },
+    rain: {
+        name: '雨',
+        emoji: '🌧️',
+        speedMultiplier: 0.8,
+        description: '視界が悪く速度が落ちる',
+        probability: 0.15
+    },
+    storm: {
+        name: '嵐',
+        emoji: '⛈️',
+        speedMultiplier: 0.6,
+        description: '激しい嵐で大幅に遅延',
+        probability: 0.1
+    }
 };
 
 // Port-specific price modifiers (multipliers)
 const portPrices = {
-    lisbon: { wine: 0.8, cloth: 1.0, spices: 2.0, silk: 1.8, gold_ore: 1.5, porcelain: 1.5, tea: 1.6, silver: 1.4 },
-    seville: { wine: 0.9, cloth: 0.9, spices: 1.8, silk: 1.7, gold_ore: 0.7, porcelain: 1.6, tea: 1.5, silver: 1.3 },
-    venice: { wine: 1.1, cloth: 0.7, spices: 1.5, silk: 1.3, gold_ore: 1.6, porcelain: 1.4, tea: 1.4, silver: 1.5 },
-    alexandria: { wine: 1.2, cloth: 1.1, spices: 0.9, silk: 1.2, gold_ore: 1.4, porcelain: 1.3, tea: 1.2, silver: 1.4 },
-    calicut: { wine: 1.5, cloth: 1.3, spices: 0.6, silk: 1.0, gold_ore: 1.3, porcelain: 1.2, tea: 0.9, silver: 1.2 },
-    malacca: { wine: 1.6, cloth: 1.4, spices: 0.8, silk: 0.9, gold_ore: 1.2, porcelain: 1.0, tea: 0.8, silver: 1.1 },
-    nagasaki: { wine: 1.8, cloth: 1.5, spices: 1.3, silk: 0.7, gold_ore: 1.5, porcelain: 0.8, tea: 0.7, silver: 0.6 }
+    lisbon: { wine: 0.8, cloth: 1.0, spices: 2.0, silk: 1.8, gold_ore: 1.5, porcelain: 1.5, tea: 1.6, silver: 1.4, food: 1.0, water: 1.0 },
+    seville: { wine: 0.9, cloth: 0.9, spices: 1.8, silk: 1.7, gold_ore: 0.7, porcelain: 1.6, tea: 1.5, silver: 1.3, food: 0.9, water: 0.9 },
+    venice: { wine: 1.1, cloth: 0.7, spices: 1.5, silk: 1.3, gold_ore: 1.6, porcelain: 1.4, tea: 1.4, silver: 1.5, food: 1.1, water: 1.0 },
+    alexandria: { wine: 1.2, cloth: 1.1, spices: 0.9, silk: 1.2, gold_ore: 1.4, porcelain: 1.3, tea: 1.2, silver: 1.4, food: 1.2, water: 1.3 },
+    calicut: { wine: 1.5, cloth: 1.3, spices: 0.6, silk: 1.0, gold_ore: 1.3, porcelain: 1.2, tea: 0.9, silver: 1.2, food: 1.0, water: 1.1 },
+    malacca: { wine: 1.6, cloth: 1.4, spices: 0.8, silk: 0.9, gold_ore: 1.2, porcelain: 1.0, tea: 0.8, silver: 1.1, food: 1.1, water: 1.2 },
+    nagasaki: { wine: 1.8, cloth: 1.5, spices: 1.3, silk: 0.7, gold_ore: 1.5, porcelain: 0.8, tea: 0.7, silver: 0.6, food: 1.3, water: 1.2 }
 };
 
 // Ship upgrades
@@ -117,6 +161,7 @@ const shipUpgrades = [
         capacity: 50,
         speed: 1,
         cost: 0,
+        crew: 20,
         description: '小型で機動性の高い船'
     },
     {
@@ -124,6 +169,7 @@ const shipUpgrades = [
         capacity: 100,
         speed: 1.2,
         cost: 5000,
+        crew: 40,
         description: '大型で積載量が多い船'
     },
     {
@@ -131,6 +177,7 @@ const shipUpgrades = [
         capacity: 150,
         speed: 1.5,
         cost: 15000,
+        crew: 60,
         description: '最大級の貿易船'
     },
     {
@@ -138,6 +185,7 @@ const shipUpgrades = [
         capacity: 250,
         speed: 2,
         cost: 50000,
+        crew: 100,
         description: '伝説の大型貿易船'
     }
 ];
@@ -216,8 +264,13 @@ function loadGame() {
             gameState.currentPort = loadedState.currentPort;
             gameState.inventory = loadedState.inventory || {};
             gameState.ship = loadedState.ship;
+            // Ensure crew exists (for backward compatibility)
+            if (!gameState.ship.crew) {
+                gameState.ship.crew = 20;
+            }
             gameState.logs = loadedState.logs || [];
             gameState.gameTime = loadedState.gameTime || 0;
+            gameState.isVoyaging = loadedState.isVoyaging || false;
 
             // Load port inventory if available
             if (loadedState.portInventory) {
@@ -299,6 +352,7 @@ function addLog(message) {
 function updateStatusBar() {
     document.getElementById('gold').textContent = gameState.gold;
     document.getElementById('ship-name').textContent = gameState.ship.name;
+    document.getElementById('crew-count').textContent = gameState.ship.crew;
     document.getElementById('cargo-space').textContent = getCargoUsed();
     document.querySelector('#cargo-space + .stat-unit').textContent = ` / ${gameState.ship.capacity}`;
     document.getElementById('current-port').textContent = getCurrentPortName();
@@ -377,11 +431,22 @@ function updatePorts() {
         const baseDays = portDistances[gameState.currentPort][portId];
         const travelDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
 
+        // Calculate required supplies
+        const required = calculateRequiredSupplies(travelDays);
+        const suppliesCheck = hasEnoughSupplies(travelDays);
+        const hasSupplies = suppliesCheck.hasEnough;
+
         div.innerHTML = `
-            <span class="item-name">${port.emoji} ${port.name}</span>
-            <span style="font-size: 0.9em; color: #666;">${port.description}</span>
-            <button class="btn btn-travel" onclick="travelTo('${portId}')">
-                航海 (費用: ${travelCost}G / ${travelDays}日)
+            <div style="flex: 1;">
+                <span class="item-name">${port.emoji} ${port.name}</span>
+                <span style="font-size: 0.9em; color: #666; display: block;">${port.description}</span>
+                <span style="font-size: 0.85em; color: ${hasSupplies ? '#666' : '#d32f2f'}; display: block; margin-top: 5px;">
+                    必要物資: 🍖${required.food} 💧${required.water}
+                    ${!hasSupplies ? '(不足)' : ''}
+                </span>
+            </div>
+            <button class="btn btn-travel" onclick="travelTo('${portId}')" ${!hasSupplies ? 'disabled' : ''}>
+                航海 (${travelCost}G / ${travelDays}日)
             </button>
         `;
         portsDiv.appendChild(div);
@@ -406,7 +471,7 @@ function updateUpgrades() {
                 <div class="item-name">⛵ ${ship.name}</div>
                 <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
                     ${ship.description}<br>
-                    積載量: ${ship.capacity} / 速度: ${ship.speed}x
+                    積載量: ${ship.capacity} / 速度: ${ship.speed}x / 乗員: ${ship.crew}人
                 </div>
             </div>
             <div style="text-align: right;">
@@ -549,7 +614,46 @@ function sellAllGood(goodId) {
     updateAll();
 }
 
-function travelTo(portId) {
+// Weather and Voyage Functions
+function getRandomWeather() {
+    const rand = Math.random();
+    let cumulative = 0;
+
+    for (const [key, weather] of Object.entries(weatherTypes)) {
+        cumulative += weather.probability;
+        if (rand <= cumulative) {
+            return { id: key, ...weather };
+        }
+    }
+    return { id: 'sunny', ...weatherTypes.sunny };
+}
+
+function calculateRequiredSupplies(days) {
+    const crew = gameState.ship.crew;
+    return {
+        food: Math.ceil(crew * days * 1.5), // 1.5x for safety margin
+        water: Math.ceil(crew * days * 1.5)
+    };
+}
+
+function hasEnoughSupplies(days) {
+    const required = calculateRequiredSupplies(days);
+    const food = gameState.inventory.food || 0;
+    const water = gameState.inventory.water || 0;
+    return {
+        hasEnough: food >= required.food && water >= required.water,
+        required,
+        current: { food, water }
+    };
+}
+
+function consumeSupplies(days) {
+    const required = calculateRequiredSupplies(days);
+    gameState.inventory.food = Math.max(0, (gameState.inventory.food || 0) - required.food);
+    gameState.inventory.water = Math.max(0, (gameState.inventory.water || 0) - required.water);
+}
+
+function startVoyage(destinationPortId) {
     const travelCost = Math.round(50 / gameState.ship.speed);
 
     if (gameState.gold < travelCost) {
@@ -557,31 +661,160 @@ function travelTo(portId) {
         return;
     }
 
-    // Calculate travel time
-    const baseDays = portDistances[gameState.currentPort][portId];
-    const travelDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
+    // Calculate base travel time
+    const baseDays = portDistances[gameState.currentPort][destinationPortId];
+    const estimatedDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
 
+    // Check supplies
+    const suppliesCheck = hasEnoughSupplies(estimatedDays);
+    if (!suppliesCheck.hasEnough) {
+        addLog(`❌ 物資が不足しています！`);
+        addLog(`必要: 食糧${suppliesCheck.required.food}個、水${suppliesCheck.required.water}個`);
+        addLog(`現在: 食糧${suppliesCheck.current.food}個、水${suppliesCheck.current.water}個`);
+        return;
+    }
+
+    // Deduct travel cost
     gameState.gold -= travelCost;
+    gameState.isVoyaging = true;
 
     const oldPort = ports[gameState.currentPort].name;
-    gameState.currentPort = portId;
-    const newPort = ports[portId].name;
+    const newPort = ports[destinationPortId].name;
 
+    // Show voyage modal
+    showVoyageModal(oldPort, newPort, destinationPortId, estimatedDays);
+}
+
+function showVoyageModal(fromPort, toPort, destinationPortId, estimatedDays) {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.id = 'voyage-modal';
+    modal.className = 'voyage-modal';
+    modal.innerHTML = `
+        <div class="voyage-content">
+            <h2>⛵ 航海中 ⛵</h2>
+            <div class="voyage-route">
+                <div>${fromPort}</div>
+                <div class="voyage-arrow">→</div>
+                <div>${toPort}</div>
+            </div>
+            <div class="voyage-info">
+                <div class="voyage-stat">
+                    <span class="stat-label">経過日数:</span>
+                    <span id="voyage-days-elapsed" class="stat-value">0</span>
+                    <span class="stat-unit">/ 予定 ${estimatedDays}日</span>
+                </div>
+                <div class="voyage-stat">
+                    <span class="stat-label">現在の天候:</span>
+                    <span id="voyage-weather" class="stat-value">☀️ 晴天</span>
+                </div>
+                <div class="voyage-stat">
+                    <span class="stat-label">速度:</span>
+                    <span id="voyage-speed" class="stat-value">100%</span>
+                </div>
+            </div>
+            <div class="voyage-animation">
+                <div id="voyage-ship" class="voyage-ship">⛵</div>
+                <div id="voyage-weather-effect" class="weather-effect"></div>
+            </div>
+            <div id="voyage-log" class="voyage-log"></div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Start voyage simulation
+    simulateVoyage(destinationPortId, estimatedDays);
+}
+
+function simulateVoyage(destinationPortId, estimatedDays) {
+    const TIME_PER_DAY = 15000; // 15 seconds per game day
+    let daysElapsed = 0;
+    let actualDaysNeeded = estimatedDays;
+    let currentWeather = getRandomWeather();
+
+    const voyageLog = document.getElementById('voyage-log');
+    const addVoyageLog = (message) => {
+        const p = document.createElement('p');
+        p.textContent = message;
+        voyageLog.appendChild(p);
+        voyageLog.scrollTop = voyageLog.scrollHeight;
+    };
+
+    addVoyageLog(`🌊 ${ports[gameState.currentPort].name}を出港しました`);
+    addVoyageLog(`${currentWeather.emoji} ${currentWeather.name}: ${currentWeather.description}`);
+
+    const interval = setInterval(() => {
+        daysElapsed++;
+
+        // Random weather change (20% chance per day)
+        if (Math.random() < 0.2) {
+            currentWeather = getRandomWeather();
+            addVoyageLog(`${currentWeather.emoji} 天候が変化: ${currentWeather.name}`);
+
+            // Adjust estimated arrival based on weather
+            if (currentWeather.speedMultiplier < 1.0) {
+                const delay = Math.random() < 0.3 ? 1 : 0;
+                if (delay > 0) {
+                    actualDaysNeeded += delay;
+                    addVoyageLog(`⚠️ ${currentWeather.name}の影響で到着が遅れています`);
+                }
+            }
+        }
+
+        // Update UI
+        document.getElementById('voyage-days-elapsed').textContent = daysElapsed;
+        document.getElementById('voyage-weather').textContent = `${currentWeather.emoji} ${currentWeather.name}`;
+        document.getElementById('voyage-speed').textContent = `${Math.round(currentWeather.speedMultiplier * 100)}%`;
+
+        // Update weather effect
+        const weatherEffect = document.getElementById('voyage-weather-effect');
+        weatherEffect.className = 'weather-effect ' + currentWeather.id;
+
+        // Check if voyage is complete
+        if (daysElapsed >= actualDaysNeeded) {
+            clearInterval(interval);
+            completeVoyage(destinationPortId, daysElapsed);
+        }
+    }, TIME_PER_DAY);
+}
+
+function completeVoyage(destinationPortId, actualDays) {
     // Advance time
-    gameState.gameTime += travelDays;
+    gameState.gameTime += actualDays;
 
-    // Refresh port inventories based on time passed
-    refreshPortInventory(travelDays);
+    // Consume supplies
+    consumeSupplies(actualDays);
 
-    // Sailing animation
-    const ship = document.getElementById('ship-sprite');
-    ship.classList.add('sailing');
+    // Change port
+    const oldPort = ports[gameState.currentPort].name;
+    gameState.currentPort = destinationPortId;
+    const newPort = ports[destinationPortId].name;
 
-    addLog(`⛵ ${oldPort}から${newPort}へ航海しました！(費用: ${travelCost}G / ${travelDays}日経過)`);
-    addLog(`🏖️ ${ports[portId].emoji} ${newPort}に到着！${ports[portId].description}`);
+    // Refresh port inventories
+    refreshPortInventory(actualDays);
+
+    gameState.isVoyaging = false;
+
+    // Add logs
+    addLog(`⛵ ${oldPort}から${newPort}へ${actualDays}日間の航海を終えました`);
+    addLog(`🏖️ ${ports[destinationPortId].emoji} ${newPort}に到着！`);
     addLog(`📅 現在の日数: ${gameState.gameTime}日目`);
 
-    updateAll();
+    // Close modal
+    setTimeout(() => {
+        const modal = document.getElementById('voyage-modal');
+        if (modal) {
+            modal.remove();
+        }
+        updateAll();
+    }, 2000);
+}
+
+function travelTo(portId) {
+    if (gameState.isVoyaging) {
+        return; // Prevent travel during voyage
+    }
+    startVoyage(portId);
 }
 
 function upgradeShip(shipIndex) {
