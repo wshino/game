@@ -198,7 +198,19 @@ function initializePortInventory() {
         const maxStock = inventorySettings[portSize].maxStock;
 
         for (const goodId in goods) {
-            portInventory[portId][goodId] = maxStock;
+            // Water and food are more abundant in larger cities
+            if (goodId === 'water' || goodId === 'food') {
+                // Small ports have limited supplies (30% of max)
+                // Medium and larger ports have full supplies
+                if (portSize === 'small') {
+                    portInventory[portId][goodId] = Math.round(maxStock * 0.3);
+                } else {
+                    portInventory[portId][goodId] = maxStock;
+                }
+            } else {
+                // Other goods start at max stock
+                portInventory[portId][goodId] = maxStock;
+            }
         }
     }
 }
