@@ -497,7 +497,7 @@ function updatePorts() {
     // Add voyage start button if destination is selected
     if (gameState.selectedDestination) {
         const selectedPort = ports[gameState.selectedDestination];
-        const travelCost = Math.round(50 / gameState.ship.speed);
+        const travelCost = 0; // No gold cost - supplies are the travel cost
         const baseDays = portDistances[gameState.currentPort][gameState.selectedDestination];
         const travelDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
         const required = calculateRequiredSupplies(travelDays);
@@ -509,7 +509,7 @@ function updatePorts() {
             <div style="margin-bottom: 10px;">
                 <strong style="color: #1976d2; font-size: 1.1em;">🗺️ 選択中: ${selectedPort.emoji} ${selectedPort.name}</strong>
                 <div style="font-size: 0.85em; color: #555; margin-top: 5px;">
-                    費用: ${travelCost}G | 日数: ${travelDays}日 | 必要物資: 🍖${required.food} 💧${required.water}
+                    日数: ${travelDays}日 | 必要物資: 🍖${required.food} 💧${required.water}
                 </div>
                 ${!suppliesCheck.hasEnough ? `
                     <div style="font-size: 0.85em; color: #d32f2f; margin-top: 5px;">
@@ -543,7 +543,7 @@ function updatePorts() {
         const div = document.createElement('div');
         div.className = 'port-item';
 
-        const travelCost = Math.round(50 / gameState.ship.speed);
+        const travelCost = 0; // No gold cost - supplies are the travel cost
         const baseDays = portDistances[gameState.currentPort][portId];
         const travelDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
 
@@ -557,7 +557,7 @@ function updatePorts() {
                 <span class="item-name">${port.emoji} ${port.name}</span>
                 <span style="font-size: 0.9em; color: #666; display: block;">${port.description}</span>
                 <span style="font-size: 0.85em; color: #666; display: block; margin-top: 5px;">
-                    必要物資: 🍖${required.food} 💧${required.water} | 費用: ${travelCost}G | 日数: ${travelDays}日
+                    必要物資: 🍖${required.food} 💧${required.water} | 日数: ${travelDays}日
                 </span>
             </div>
             <button class="btn btn-travel" onclick="selectDestination('${portId}')" ${isSelected ? 'disabled' : ''}>
@@ -841,12 +841,8 @@ function autoSupplyForVoyage(days) {
 }
 
 function startVoyage(destinationPortId) {
-    const travelCost = Math.round(50 / gameState.ship.speed);
-
-    if (gameState.gold < travelCost) {
-        addLog(`❌ 航海費用が足りません！(必要: ${travelCost}G)`);
-        return;
-    }
+    // No gold cost for travel - supplies are the travel cost
+    const travelCost = 0;
 
     // Calculate base travel time
     const baseDays = portDistances[gameState.currentPort][destinationPortId];
@@ -861,8 +857,6 @@ function startVoyage(destinationPortId) {
         return;
     }
 
-    // Deduct travel cost
-    gameState.gold -= travelCost;
     gameState.isVoyaging = true;
 
     const oldPort = ports[gameState.currentPort].name;
