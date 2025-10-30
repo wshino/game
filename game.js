@@ -5,7 +5,7 @@ const gameState = {
     inventory: {},
     ship: {
         name: 'カラベル船',
-        capacity: 50,
+        capacity: 100,
         speed: 1,
         crew: 20
     },
@@ -159,7 +159,7 @@ const portPrices = {
 const shipUpgrades = [
     {
         name: 'カラベル船',
-        capacity: 50,
+        capacity: 100,
         speed: 1,
         cost: 0,
         crew: 20,
@@ -167,7 +167,7 @@ const shipUpgrades = [
     },
     {
         name: 'キャラック船',
-        capacity: 100,
+        capacity: 200,
         speed: 1.2,
         cost: 5000,
         crew: 40,
@@ -175,7 +175,7 @@ const shipUpgrades = [
     },
     {
         name: 'ガレオン船',
-        capacity: 150,
+        capacity: 300,
         speed: 1.5,
         cost: 15000,
         crew: 60,
@@ -183,7 +183,7 @@ const shipUpgrades = [
     },
     {
         name: '東インド会社船',
-        capacity: 250,
+        capacity: 500,
         speed: 2,
         cost: 50000,
         crew: 100,
@@ -746,8 +746,8 @@ function getRandomWeather() {
 function calculateRequiredSupplies(days) {
     const crew = gameState.ship.crew;
     return {
-        food: Math.ceil(crew * days * 1.5), // 1.5x for safety margin
-        water: Math.ceil(crew * days * 1.5)
+        food: Math.ceil(crew * days * 1.0), // 1 unit per crew per day
+        water: Math.ceil(crew * days * 1.0)
     };
 }
 
