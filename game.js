@@ -12,7 +12,14 @@ const gameState = {
     logs: [],
     gameTime: 0, // Game time in days
     isVoyaging: false, // Flag to track if currently on a voyage
-    selectedDestination: null // Selected destination port before voyage
+    selectedDestination: null, // Selected destination port before voyage
+    // Real-time voyage tracking
+    voyageStartTime: null, // Real-time timestamp (milliseconds) when voyage started
+    voyageStartPort: null, // Port where voyage started
+    voyageDestinationPort: null, // Destination port
+    voyageEstimatedDays: null, // Estimated days for voyage
+    voyageActualDays: null, // Actual days needed (may change due to weather)
+    voyageWeatherHistory: [] // Weather changes during voyage
 };
 
 // Port Definitions (based on historical 15-16th century city sizes)
@@ -285,6 +292,14 @@ function loadGame() {
             gameState.gameTime = loadedState.gameTime || 0;
             gameState.isVoyaging = loadedState.isVoyaging || false;
 
+            // Load real-time voyage data
+            gameState.voyageStartTime = loadedState.voyageStartTime || null;
+            gameState.voyageStartPort = loadedState.voyageStartPort || null;
+            gameState.voyageDestinationPort = loadedState.voyageDestinationPort || null;
+            gameState.voyageEstimatedDays = loadedState.voyageEstimatedDays || null;
+            gameState.voyageActualDays = loadedState.voyageActualDays || null;
+            gameState.voyageWeatherHistory = loadedState.voyageWeatherHistory || [];
+
             // Load port inventory if available
             if (loadedState.portInventory) {
                 for (const portId in loadedState.portInventory) {
@@ -336,12 +351,77 @@ function loadGame() {
             });
 
             addLog('💾 前回のセーブデータを読み込みました！');
+
+            // Check for ongoing voyage and update based on real-time
+            checkAndUpdateVoyageProgress();
+
             return true;
         }
     } catch (e) {
         console.error('ロードに失敗しました:', e);
     }
     return false;
+}
+
+// Check if a voyage is in progress and update based on real-time elapsed
+function checkAndUpdateVoyageProgress() {
+    if (!gameState.isVoyaging || !gameState.voyageStartTime || !gameState.voyageDestinationPort) {
+        return;
+    }
+
+    const TIME_PER_DAY = 15000; // 15 seconds per game day
+    const now = Date.now();
+    const elapsedRealTime = now - gameState.voyageStartTime;
+    const elapsedGameDays = Math.floor(elapsedRealTime / TIME_PER_DAY);
+
+    console.log('航海チェック - 経過日数:', elapsedGameDays, '必要日数:', gameState.voyageActualDays || gameState.voyageEstimatedDays);
+
+    // Check if voyage is complete
+    const requiredDays = gameState.voyageActualDays || gameState.voyageEstimatedDays;
+    if (elapsedGameDays >= requiredDays) {
+        // Voyage is complete - finish it immediately
+        completeVoyageImmediately(requiredDays);
+    } else {
+        // Voyage is still in progress - show modal
+        const fromPort = ports[gameState.voyageStartPort].name;
+        const toPort = ports[gameState.voyageDestinationPort].name;
+        showVoyageModalInProgress(fromPort, toPort, elapsedGameDays, requiredDays);
+    }
+}
+
+// Complete voyage immediately (for when returning to game after voyage finished)
+function completeVoyageImmediately(actualDays) {
+    const destinationPortId = gameState.voyageDestinationPort;
+
+    // Advance time
+    gameState.gameTime += actualDays;
+
+    // Consume supplies
+    consumeSupplies(actualDays);
+
+    // Change port
+    const oldPort = ports[gameState.voyageStartPort].name;
+    gameState.currentPort = destinationPortId;
+    const newPort = ports[destinationPortId].name;
+
+    // Refresh port inventories
+    refreshPortInventory(actualDays);
+
+    // Clear voyage state
+    gameState.isVoyaging = false;
+    gameState.voyageStartTime = null;
+    gameState.voyageStartPort = null;
+    gameState.voyageDestinationPort = null;
+    gameState.voyageEstimatedDays = null;
+    gameState.voyageActualDays = null;
+    gameState.voyageWeatherHistory = [];
+
+    // Add logs
+    addLog(`⛵ ${oldPort}から${newPort}へ${actualDays}日間の航海を終えました`);
+    addLog(`🏖️ ${ports[destinationPortId].emoji} ${newPort}に到着！`);
+    addLog(`📅 現在の日数: ${gameState.gameTime}日目`);
+
+    console.log('航海完了 - 自動到着処理');
 }
 
 function clearSave() {
@@ -1012,12 +1092,22 @@ function startVoyage(destinationPortId) {
         return;
     }
 
+    // Set voyage state with real-time tracking
     gameState.isVoyaging = true;
+    gameState.voyageStartTime = Date.now();
+    gameState.voyageStartPort = gameState.currentPort;
+    gameState.voyageDestinationPort = destinationPortId;
+    gameState.voyageEstimatedDays = estimatedDays;
+    gameState.voyageActualDays = estimatedDays; // Will be updated by weather
+    gameState.voyageWeatherHistory = [];
 
     const oldPort = ports[gameState.currentPort].name;
     const newPort = ports[destinationPortId].name;
 
     addLog(`⛵ ${newPort}に向けて出港します！`);
+
+    // Save immediately to persist voyage state
+    saveGame();
 
     // Show voyage modal
     showVoyageModal(oldPort, newPort, destinationPortId, estimatedDays);
@@ -1064,11 +1154,43 @@ function showVoyageModal(fromPort, toPort, destinationPortId, estimatedDays) {
     simulateVoyage(destinationPortId, estimatedDays);
 }
 
-function simulateVoyage(destinationPortId, estimatedDays) {
-    const TIME_PER_DAY = 15000; // 15 seconds per game day
-    let daysElapsed = 0;
-    let actualDaysNeeded = estimatedDays;
-    let currentWeather = getRandomWeather();
+// Show voyage modal for an in-progress voyage (when returning to game)
+function showVoyageModalInProgress(fromPort, toPort, currentDaysElapsed, totalDays) {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.id = 'voyage-modal';
+    modal.className = 'voyage-modal';
+    modal.innerHTML = `
+        <div class="voyage-content">
+            <h2>⛵ 航海中 ⛵</h2>
+            <div class="voyage-route">
+                <div>${fromPort}</div>
+                <div class="voyage-arrow">→</div>
+                <div>${toPort}</div>
+            </div>
+            <div class="voyage-info">
+                <div class="voyage-stat">
+                    <span class="stat-label">経過日数:</span>
+                    <span id="voyage-days-elapsed" class="stat-value">${currentDaysElapsed}</span>
+                    <span class="stat-unit">/ 予定 ${totalDays}日</span>
+                </div>
+                <div class="voyage-stat">
+                    <span class="stat-label">現在の天候:</span>
+                    <span id="voyage-weather" class="stat-value">☀️ 晴天</span>
+                </div>
+                <div class="voyage-stat">
+                    <span class="stat-label">速度:</span>
+                    <span id="voyage-speed" class="stat-value">100%</span>
+                </div>
+            </div>
+            <div class="voyage-animation">
+                <div id="voyage-ship" class="voyage-ship">🚢</div>
+                <div id="voyage-weather-effect" class="weather-effect"></div>
+            </div>
+            <div id="voyage-log" class="voyage-log"></div>
+        </div>
+    `;
+    document.body.appendChild(modal);
 
     const voyageLog = document.getElementById('voyage-log');
     const addVoyageLog = (message) => {
@@ -1078,23 +1200,72 @@ function simulateVoyage(destinationPortId, estimatedDays) {
         voyageLog.scrollTop = voyageLog.scrollHeight;
     };
 
-    addVoyageLog(`🌊 ${ports[gameState.currentPort].name}を出港しました`);
+    // Show resume message
+    addVoyageLog(`🌊 航海を再開しました（${currentDaysElapsed}日経過）`);
+
+    // Replay weather history
+    for (const weatherEvent of gameState.voyageWeatherHistory) {
+        if (weatherEvent.day <= currentDaysElapsed) {
+            addVoyageLog(`${weatherEvent.emoji} ${weatherEvent.name}`);
+        }
+    }
+
+    // Continue voyage simulation
+    simulateVoyage(gameState.voyageDestinationPort, gameState.voyageEstimatedDays);
+}
+
+function simulateVoyage(destinationPortId, estimatedDays) {
+    const TIME_PER_DAY = 15000; // 15 seconds per game day
+    let currentWeather = getRandomWeather();
+    let lastWeatherChangeDay = 0;
+
+    const voyageLog = document.getElementById('voyage-log');
+    const addVoyageLog = (message) => {
+        const p = document.createElement('p');
+        p.textContent = message;
+        voyageLog.appendChild(p);
+        voyageLog.scrollTop = voyageLog.scrollHeight;
+    };
+
+    addVoyageLog(`🌊 ${ports[gameState.voyageStartPort].name}を出港しました`);
     addVoyageLog(`${currentWeather.emoji} ${currentWeather.name}: ${currentWeather.description}`);
 
-    const interval = setInterval(() => {
-        daysElapsed++;
+    // Store initial weather
+    gameState.voyageWeatherHistory.push({
+        day: 0,
+        weather: currentWeather.id,
+        emoji: currentWeather.emoji,
+        name: currentWeather.name
+    });
+
+    // Update UI based on real-time elapsed
+    const updateVoyageUI = () => {
+        const now = Date.now();
+        const elapsedRealTime = now - gameState.voyageStartTime;
+        const daysElapsed = Math.floor(elapsedRealTime / TIME_PER_DAY);
+        const actualDaysNeeded = gameState.voyageActualDays;
 
         // Random weather change (20% chance per day)
-        if (Math.random() < 0.2) {
+        if (daysElapsed > lastWeatherChangeDay && Math.random() < 0.2) {
+            lastWeatherChangeDay = daysElapsed;
             currentWeather = getRandomWeather();
             addVoyageLog(`${currentWeather.emoji} 天候が変化: ${currentWeather.name}`);
+
+            // Store weather change
+            gameState.voyageWeatherHistory.push({
+                day: daysElapsed,
+                weather: currentWeather.id,
+                emoji: currentWeather.emoji,
+                name: currentWeather.name
+            });
 
             // Adjust estimated arrival based on weather
             if (currentWeather.speedMultiplier < 1.0) {
                 const delay = Math.random() < 0.3 ? 1 : 0;
                 if (delay > 0) {
-                    actualDaysNeeded += delay;
+                    gameState.voyageActualDays += delay;
                     addVoyageLog(`⚠️ ${currentWeather.name}の影響で到着が遅れています`);
+                    saveGame(); // Save updated voyage state
                 }
             }
         }
@@ -1106,14 +1277,22 @@ function simulateVoyage(destinationPortId, estimatedDays) {
 
         // Update weather effect
         const weatherEffect = document.getElementById('voyage-weather-effect');
-        weatherEffect.className = 'weather-effect ' + currentWeather.id;
+        if (weatherEffect) {
+            weatherEffect.className = 'weather-effect ' + currentWeather.id;
+        }
 
         // Check if voyage is complete
         if (daysElapsed >= actualDaysNeeded) {
-            clearInterval(interval);
-            completeVoyage(destinationPortId, daysElapsed);
+            completeVoyage(destinationPortId, actualDaysNeeded);
+            return; // Stop updating
         }
-    }, TIME_PER_DAY);
+
+        // Continue updating
+        requestAnimationFrame(updateVoyageUI);
+    };
+
+    // Start updating UI
+    requestAnimationFrame(updateVoyageUI);
 }
 
 function completeVoyage(destinationPortId, actualDays) {
@@ -1124,14 +1303,21 @@ function completeVoyage(destinationPortId, actualDays) {
     consumeSupplies(actualDays);
 
     // Change port
-    const oldPort = ports[gameState.currentPort].name;
+    const oldPort = ports[gameState.voyageStartPort || gameState.currentPort].name;
     gameState.currentPort = destinationPortId;
     const newPort = ports[destinationPortId].name;
 
     // Refresh port inventories
     refreshPortInventory(actualDays);
 
+    // Clear voyage state
     gameState.isVoyaging = false;
+    gameState.voyageStartTime = null;
+    gameState.voyageStartPort = null;
+    gameState.voyageDestinationPort = null;
+    gameState.voyageEstimatedDays = null;
+    gameState.voyageActualDays = null;
+    gameState.voyageWeatherHistory = [];
 
     // Add logs
     addLog(`⛵ ${oldPort}から${newPort}へ${actualDays}日間の航海を終えました`);
@@ -1256,6 +1442,12 @@ function initGame() {
         addLog('💡 各港で商品を安く買い、高く売って利益を得ましょう。');
         addLog('💡 港の在庫は限られています。時間が経つと在庫が回復します。');
         addLog('💡 資金を貯めて、より大きな船にアップグレードしましょう！');
+        addLog('💡 移動中にゲームを閉じても、現実時間で移動が進行します！');
+    } else {
+        // Check for ongoing voyage (in case loadGame didn't call it)
+        if (gameState.isVoyaging && gameState.voyageStartTime) {
+            checkAndUpdateVoyageProgress();
+        }
     }
 
     updateAll();
