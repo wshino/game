@@ -100,9 +100,9 @@ const goods = {
     porcelain: { name: '陶器', emoji: '🏺', basePrice: 120 },
     tea: { name: '茶', emoji: '🍵', basePrice: 100 },
     silver: { name: '銀', emoji: '💍', basePrice: 250 },
-    // Essential supplies
-    food: { name: '食糧', emoji: '🍖', basePrice: 5 },
-    water: { name: '水', emoji: '💧', basePrice: 3 }
+    // Essential supplies (reduced prices for better game balance)
+    food: { name: '食糧', emoji: '🍖', basePrice: 2 },
+    water: { name: '水', emoji: '💧', basePrice: 1 }
 };
 
 // Weather system
