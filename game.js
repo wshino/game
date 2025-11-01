@@ -291,6 +291,7 @@ function loadGame() {
             gameState.logs = loadedState.logs || [];
             gameState.gameTime = loadedState.gameTime || 0;
             gameState.isVoyaging = loadedState.isVoyaging || false;
+            gameState.selectedDestination = loadedState.selectedDestination || null;
 
             // Load real-time voyage data
             gameState.voyageStartTime = loadedState.voyageStartTime || null;
@@ -365,7 +366,33 @@ function loadGame() {
 
 // Check if a voyage is in progress and update based on real-time elapsed
 function checkAndUpdateVoyageProgress() {
+    // Validate voyage state - if any critical data is missing, cancel the voyage
     if (!gameState.isVoyaging || !gameState.voyageStartTime || !gameState.voyageDestinationPort) {
+        if (gameState.isVoyaging) {
+            console.log('航海状態が不完全です。航海をキャンセルします。');
+            gameState.isVoyaging = false;
+            gameState.voyageStartTime = null;
+            gameState.voyageStartPort = null;
+            gameState.voyageDestinationPort = null;
+            gameState.voyageEstimatedDays = null;
+            gameState.voyageActualDays = null;
+            gameState.voyageWeatherHistory = [];
+            saveGame();
+        }
+        return;
+    }
+
+    // Ensure voyageStartPort exists (for backward compatibility with old saves)
+    if (!gameState.voyageStartPort) {
+        console.log('出発港が記録されていません。航海をキャンセルします。');
+        gameState.isVoyaging = false;
+        gameState.voyageStartTime = null;
+        gameState.voyageStartPort = null;
+        gameState.voyageDestinationPort = null;
+        gameState.voyageEstimatedDays = null;
+        gameState.voyageActualDays = null;
+        gameState.voyageWeatherHistory = [];
+        saveGame();
         return;
     }
 
@@ -422,6 +449,10 @@ function completeVoyageImmediately(actualDays) {
     addLog(`📅 現在の日数: ${gameState.gameTime}日目`);
 
     console.log('航海完了 - 自動到着処理');
+
+    // Save and update UI
+    saveGame();
+    updateAll();
 }
 
 function clearSave() {
@@ -1114,6 +1145,12 @@ function startVoyage(destinationPortId) {
 }
 
 function showVoyageModal(fromPort, toPort, destinationPortId, estimatedDays) {
+    // Remove any existing modal first (in case of reload)
+    const existingModal = document.getElementById('voyage-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
     // Create modal overlay
     const modal = document.createElement('div');
     modal.id = 'voyage-modal';
@@ -1156,6 +1193,12 @@ function showVoyageModal(fromPort, toPort, destinationPortId, estimatedDays) {
 
 // Show voyage modal for an in-progress voyage (when returning to game)
 function showVoyageModalInProgress(fromPort, toPort, currentDaysElapsed, totalDays) {
+    // Remove any existing modal first (in case of reload)
+    const existingModal = document.getElementById('voyage-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
     // Create modal overlay
     const modal = document.createElement('div');
     modal.id = 'voyage-modal';
