@@ -356,6 +356,87 @@ function getCurrentPortName() {
     return ports[gameState.currentPort].name;
 }
 
+// Calculate profit potential for each good at destination port
+function calculateProfitForPort(destinationPortId) {
+    const profits = [];
+    const currentPort = gameState.currentPort;
+
+    for (const [goodId, good] of Object.entries(goods)) {
+        // Skip supplies
+        if (goodId === 'food' || goodId === 'water') continue;
+
+        // Calculate buy price at current port
+        const buyPrice = Math.round(good.basePrice * portPrices[currentPort][goodId] * 0.95);
+
+        // Calculate sell price at destination port
+        const sellPrice = Math.round(good.basePrice * portPrices[destinationPortId][goodId] * 0.8 * 0.95);
+
+        const profitPerUnit = sellPrice - buyPrice;
+        const profitMargin = buyPrice > 0 ? (profitPerUnit / buyPrice) * 100 : 0;
+
+        if (profitPerUnit > 0) {
+            profits.push({
+                goodId,
+                good,
+                buyPrice,
+                sellPrice,
+                profitPerUnit,
+                profitMargin,
+                stock: getPortStock(currentPort, goodId)
+            });
+        }
+    }
+
+    // Sort by profit margin (descending)
+    profits.sort((a, b) => b.profitMargin - a.profitMargin);
+
+    return profits;
+}
+
+// Get recommended goods to buy for a destination
+function getRecommendedGoods(destinationPortId, limit = 3) {
+    const profits = calculateProfitForPort(destinationPortId);
+    return profits.slice(0, limit);
+}
+
+// Check if player can afford to travel to a port
+function canAffordVoyage(destinationPortId) {
+    const baseDays = portDistances[gameState.currentPort][destinationPortId];
+    const travelDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
+    const required = calculateRequiredSupplies(travelDays);
+
+    // Calculate minimum cost for supplies
+    const foodPrice = Math.round(goods.food.basePrice * portPrices[gameState.currentPort].food);
+    const waterPrice = Math.round(goods.water.basePrice * portPrices[gameState.currentPort].water);
+
+    const currentFood = gameState.inventory.food || 0;
+    const currentWater = gameState.inventory.water || 0;
+
+    const needFood = Math.max(0, required.food - currentFood);
+    const needWater = Math.max(0, required.water - currentWater);
+
+    const supplyCost = (needFood * foodPrice) + (needWater * waterPrice);
+
+    // Check if player has enough gold and cargo space
+    const hasEnoughGold = gameState.gold >= supplyCost;
+    const hasEnoughSpace = getCargoSpace() >= (needFood + needWater);
+
+    return {
+        canAfford: hasEnoughGold && hasEnoughSpace,
+        supplyCost,
+        needFood,
+        needWater,
+        hasEnoughGold,
+        hasEnoughSpace
+    };
+}
+
+// Check if a port is profitable
+function isProfitable(destinationPortId) {
+    const profits = calculateProfitForPort(destinationPortId);
+    return profits.length > 0 && profits[0].profitMargin > 10; // At least 10% profit margin
+}
+
 function getCargoUsed() {
     return Object.values(gameState.inventory).reduce((sum, qty) => sum + qty, 0);
 }
@@ -502,9 +583,26 @@ function updatePorts() {
         const travelDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
         const required = calculateRequiredSupplies(travelDays);
         const suppliesCheck = hasEnoughSupplies(travelDays);
+        const recommendedGoods = getRecommendedGoods(gameState.selectedDestination, 3);
 
         const voyageDiv = document.createElement('div');
         voyageDiv.style.cssText = 'background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 2px solid #2196f3;';
+
+        let recommendedHTML = '';
+        if (recommendedGoods.length > 0) {
+            recommendedHTML = `
+                <div style="background: rgba(255, 215, 0, 0.1); padding: 10px; border-radius: 5px; margin-top: 10px; border: 1px solid #ffd700;">
+                    <div style="font-weight: bold; color: #d4af37; margin-bottom: 5px;">💡 おすすめ商品:</div>
+                    ${recommendedGoods.map(item => `
+                        <div style="font-size: 0.85em; color: #555; margin-left: 10px;">
+                            ${item.good.emoji} ${item.good.name}: 買${item.buyPrice}G → 売${item.sellPrice}G
+                            <span style="color: #2e7d32; font-weight: bold;">(+${item.profitPerUnit}G, +${Math.round(item.profitMargin)}%)</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
         voyageDiv.innerHTML = `
             <div style="margin-bottom: 10px;">
                 <strong style="color: #1976d2; font-size: 1.1em;">🗺️ 選択中: ${selectedPort.emoji} ${selectedPort.name}</strong>
@@ -516,6 +614,7 @@ function updatePorts() {
                         ⚠️ 物資不足: 食糧${suppliesCheck.current.food}/${required.food}、水${suppliesCheck.current.water}/${required.water}
                     </div>
                 ` : ''}
+                ${recommendedHTML}
             </div>
             <div style="display: flex; gap: 10px;">
                 <button class="btn btn-travel" onclick="startSelectedVoyage()" ${!suppliesCheck.hasEnough ? 'disabled' : ''} style="flex: 1;">
@@ -537,20 +636,75 @@ function updatePorts() {
         portsDiv.appendChild(separator);
     }
 
+    // Collect and filter ports
+    const portsList = [];
     for (const [portId, port] of Object.entries(ports)) {
         if (portId === gameState.currentPort) continue;
+
+        const baseDays = portDistances[gameState.currentPort][portId];
+        const travelDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
+        const required = calculateRequiredSupplies(travelDays);
+        const canAfford = canAffordVoyage(portId);
+        const profitable = isProfitable(portId);
+        const recommendedGoods = getRecommendedGoods(portId, 3);
+
+        portsList.push({
+            portId,
+            port,
+            travelDays,
+            required,
+            canAfford,
+            profitable,
+            recommendedGoods
+        });
+    }
+
+    // Filter: only show ports that are both reachable and profitable
+    const filteredPorts = portsList.filter(p => p.canAfford.canAfford && p.profitable);
+
+    if (filteredPorts.length === 0) {
+        const noPortsDiv = document.createElement('div');
+        noPortsDiv.style.cssText = 'text-align: center; color: #666; padding: 20px; background: #f5f5f5; border-radius: 8px;';
+        noPortsDiv.innerHTML = `
+            <div style="font-size: 1.1em; margin-bottom: 10px;">😔 現在、行ける&儲かる港がありません</div>
+            <div style="font-size: 0.9em;">資金を貯めるか、現在の港で商品を売却してください</div>
+        `;
+        portsDiv.appendChild(noPortsDiv);
+        return;
+    }
+
+    // Sort by profitability (highest profit margin first)
+    filteredPorts.sort((a, b) => {
+        const aProfitMargin = a.recommendedGoods[0]?.profitMargin || 0;
+        const bProfitMargin = b.recommendedGoods[0]?.profitMargin || 0;
+        return bProfitMargin - aProfitMargin;
+    });
+
+    for (const portData of filteredPorts) {
+        const { portId, port, travelDays, required, canAfford, profitable, recommendedGoods } = portData;
 
         const div = document.createElement('div');
         div.className = 'port-item';
 
-        const travelCost = 0; // No gold cost - supplies are the travel cost
-        const baseDays = portDistances[gameState.currentPort][portId];
-        const travelDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
-
-        // Calculate required supplies
-        const required = calculateRequiredSupplies(travelDays);
-
         const isSelected = gameState.selectedDestination === portId;
+
+        // Create recommended goods display
+        let recommendedHTML = '';
+        if (recommendedGoods.length > 0) {
+            const topProfit = recommendedGoods[0];
+            recommendedHTML = `
+                <div style="background: rgba(46, 125, 50, 0.1); padding: 8px; border-radius: 5px; margin-top: 5px; border-left: 3px solid #2e7d32;">
+                    <div style="font-size: 0.85em; color: #2e7d32; font-weight: bold;">
+                        💰 最高利益: ${topProfit.good.emoji} ${topProfit.good.name} (+${Math.round(topProfit.profitMargin)}%)
+                    </div>
+                    ${recommendedGoods.slice(1).map(item => `
+                        <div style="font-size: 0.8em; color: #555; margin-left: 10px; margin-top: 2px;">
+                            ${item.good.emoji} ${item.good.name} (+${Math.round(item.profitMargin)}%)
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
 
         div.innerHTML = `
             <div style="flex: 1;">
@@ -559,6 +713,7 @@ function updatePorts() {
                 <span style="font-size: 0.85em; color: #666; display: block; margin-top: 5px;">
                     必要物資: 🍖${required.food} 💧${required.water} | 日数: ${travelDays}日
                 </span>
+                ${recommendedHTML}
             </div>
             <button class="btn btn-travel" onclick="selectDestination('${portId}')" ${isSelected ? 'disabled' : ''}>
                 ${isSelected ? '選択中' : '選択'}
