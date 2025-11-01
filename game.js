@@ -369,7 +369,7 @@ function calculateProfitForPort(destinationPortId) {
         const buyPrice = Math.round(good.basePrice * portPrices[currentPort][goodId] * 0.95);
 
         // Calculate sell price at destination port
-        const sellPrice = Math.round(good.basePrice * portPrices[destinationPortId][goodId] * 0.8 * 0.95);
+        const sellPrice = Math.round(good.basePrice * portPrices[destinationPortId][goodId] * 0.95);
 
         const profitPerUnit = sellPrice - buyPrice;
         const profitMargin = buyPrice > 0 ? (profitPerUnit / buyPrice) * 100 : 0;
