@@ -206,19 +206,8 @@ function initializePortInventory() {
         const maxStock = inventorySettings[portSize].maxStock;
 
         for (const goodId in goods) {
-            // Water and food are more abundant in larger cities
-            if (goodId === 'water' || goodId === 'food') {
-                // Small ports have limited supplies (30% of max)
-                // Medium and larger ports have full supplies
-                if (portSize === 'small') {
-                    portInventory[portId][goodId] = Math.round(maxStock * 0.3);
-                } else {
-                    portInventory[portId][goodId] = maxStock;
-                }
-            } else {
-                // Other goods start at max stock
-                portInventory[portId][goodId] = maxStock;
-            }
+            // All ports now have full supplies of water and food for better game balance
+            portInventory[portId][goodId] = maxStock;
         }
     }
 }
@@ -316,22 +305,11 @@ function loadGame() {
                     const portSize = ports[portId].size;
                     const maxStock = inventorySettings[portSize].maxStock;
 
-                    // Ensure water and food have proper initial values
+                    // Ensure all goods have proper initial values
                     for (const goodId in goods) {
-                        if (goodId === 'water' || goodId === 'food') {
-                            // If water or food is missing or 0, reset to initial value
-                            if (!portInventory[portId][goodId] || portInventory[portId][goodId] === 0) {
-                                if (portSize === 'small') {
-                                    portInventory[portId][goodId] = Math.round(maxStock * 0.3);
-                                } else {
-                                    portInventory[portId][goodId] = maxStock;
-                                }
-                            }
-                        } else {
-                            // Initialize other goods if missing
-                            if (!portInventory[portId][goodId]) {
-                                portInventory[portId][goodId] = maxStock;
-                            }
+                        // Initialize missing goods with max stock
+                        if (!portInventory[portId][goodId] || portInventory[portId][goodId] === 0) {
+                            portInventory[portId][goodId] = maxStock;
                         }
                     }
                 }
@@ -1012,8 +990,8 @@ function getRandomWeather() {
 function calculateRequiredSupplies(days) {
     const crew = gameState.ship.crew;
     return {
-        food: Math.ceil(crew * days * 1.0), // 1 unit per crew per day
-        water: Math.ceil(crew * days * 1.0)
+        food: Math.ceil(crew * days * 0.08), // 0.08 units per crew per day (reduced for better game balance)
+        water: Math.ceil(crew * days * 0.08)
     };
 }
 
