@@ -1,0 +1,11 @@
+{
+  "name": "daikoukai-jidai-game",
+  "version": "1.0.0",
+  "description": "大航海時代 - 冒険と貿易の旅",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": ["game", "trading", "adventure"],
+  "author": "",
+  "license": "MIT"
+}
