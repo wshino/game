@@ -1503,10 +1503,39 @@ function initGame() {
 window.addEventListener('DOMContentLoaded', initGame);
 
 // Make functions globally accessible
-window.buyGood = buyGood;
-window.buyAllGood = buyAllGood;
-window.sellGood = sellGood;
-window.sellAllGood = sellAllGood;
-window.travelTo = travelTo;
-window.upgradeShip = upgradeShip;
-window.clearSave = clearSave;
+if (typeof window !== 'undefined') {
+    window.buyGood = buyGood;
+    window.buyAllGood = buyAllGood;
+    window.sellGood = sellGood;
+    window.sellAllGood = sellAllGood;
+    window.travelTo = travelTo;
+    window.upgradeShip = upgradeShip;
+    window.clearSave = clearSave;
+    window.selectDestination = selectDestination;
+    window.startSelectedVoyage = startSelectedVoyage;
+    window.cancelDestination = cancelDestination;
+}
+
+// Export for testing (Node.js environment)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        gameState,
+        ports,
+        goods,
+        portInventory,
+        portDistances,
+        inventorySettings,
+        calculateRequiredSupplies,
+        hasEnoughSupplies,
+        consumeSupplies,
+        buySupply,
+        autoSupplyForVoyage,
+        selectDestination,
+        getPortStock,
+        reducePortStock,
+        initializePortInventory,
+        getCargoSpace,
+        getCargoUsed,
+        getPrice
+    };
+}
