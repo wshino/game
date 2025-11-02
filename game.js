@@ -1365,6 +1365,10 @@ function selectDestination(portId) {
     const baseDays = portDistances[gameState.currentPort][portId];
     const estimatedDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
 
+    // Calculate supply space requirements for warning
+    const supplySpace = required.food + required.water;
+    const supplyPercentage = (supplySpace / gameState.ship.capacity) * 100;
+
     // Auto-supply food and water
     const supplyResult = autoSupplyForVoyage(estimatedDays);
 
@@ -1379,9 +1383,27 @@ function selectDestination(portId) {
         if (supplyResult.boughtWater > 0) {
             addLog(`  水: ${supplyResult.boughtWater}個を補給`);
         }
+
+        // Warning for high supply percentage
+        if (supplyPercentage > 80) {
+            addLog(`⚠️ この航海は物資が積載量の${Math.round(supplyPercentage)}%を占めます`);
+            addLog(`💡 より大きな船か、中継港の利用をお勧めします`);
+        } else if (supplyPercentage > 60) {
+            addLog(`📊 この航海の物資負担: ${Math.round(supplyPercentage)}%`);
+        }
+
         addLog(`💼 商品を積んだら「航海を開始する」ボタンで出発してください`);
     } else if (supplyResult.success && supplyResult.alreadyEnough) {
         addLog(`⚓ ${ports[portId].name}を航海先に選択しました`);
+
+        // Warning for high supply percentage
+        if (supplyPercentage > 80) {
+            addLog(`⚠️ この航海は物資が積載量の${Math.round(supplyPercentage)}%を占めます`);
+            addLog(`💡 より大きな船か、中継港の利用をお勧めします`);
+        } else if (supplyPercentage > 60) {
+            addLog(`📊 この航海の物資負担: ${Math.round(supplyPercentage)}%`);
+        }
+
         addLog(`💼 商品を積んだら「航海を開始する」ボタンで出発してください`);
     } else {
         // Could not supply enough
@@ -1461,6 +1483,8 @@ function initGame() {
 
         addLog('🌊 大航海時代へようこそ！');
         addLog('💡 各港で商品を安く買い、高く売って利益を得ましょう。');
+        addLog('💡 おすすめ: まずは近隣の港（セビリア、ヴェネツィア）で取引して資金を貯めましょう。');
+        addLog('💡 遠い港（カリカット、長崎）へは、段階的に東へ進むと効率的です。');
         addLog('💡 港の在庫は限られています。時間が経つと在庫が回復します。');
         addLog('💡 資金を貯めて、より大きな船にアップグレードしましょう！');
         addLog('💡 移動中にゲームを閉じても、現実時間で移動が進行します！');
