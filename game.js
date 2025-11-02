@@ -1364,6 +1364,7 @@ function selectDestination(portId) {
     // Calculate required supplies
     const baseDays = portDistances[gameState.currentPort][portId];
     const estimatedDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
+    const required = calculateRequiredSupplies(estimatedDays);
 
     // Calculate supply space requirements for warning
     const supplySpace = required.food + required.water;
