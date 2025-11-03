@@ -103,6 +103,57 @@ const portDistances = {
     nagasaki: { lisbon: 30, seville: 29, venice: 27, alexandria: 25, calicut: 15, malacca: 10, nagasaki: 0 }
 };
 
+// Sea routes with waypoints to avoid land
+// Each route is defined as an array of waypoints [x, y]
+const seaRoutes = {
+    'lisbon-seville': [[100, 300], [110, 320], [120, 340]],
+    'lisbon-venice': [[100, 300], [100, 240], [180, 220], [240, 240], [280, 280]],
+    'lisbon-alexandria': [[100, 300], [100, 240], [180, 220], [240, 240], [280, 280], [320, 300], [340, 350]],
+    'lisbon-calicut': [[100, 300], [100, 240], [180, 220], [240, 240], [280, 280], [320, 300], [340, 350], [380, 450], [450, 480], [520, 420]],
+    'lisbon-malacca': [[100, 300], [100, 240], [180, 220], [240, 240], [280, 280], [320, 300], [340, 350], [380, 450], [450, 480], [520, 480], [600, 490], [680, 440]],
+    'lisbon-nagasaki': [[100, 300], [100, 240], [180, 220], [240, 240], [280, 280], [320, 300], [340, 350], [380, 450], [450, 480], [520, 480], [600, 490], [680, 440], [720, 380], [780, 320], [860, 260]],
+
+    'seville-venice': [[120, 340], [140, 300], [180, 260], [240, 250], [280, 280]],
+    'seville-alexandria': [[120, 340], [140, 300], [180, 260], [240, 250], [280, 280], [320, 300], [340, 350]],
+    'seville-calicut': [[120, 340], [140, 300], [180, 260], [240, 250], [280, 280], [320, 300], [340, 350], [380, 450], [450, 480], [520, 420]],
+    'seville-malacca': [[120, 340], [140, 300], [180, 260], [240, 250], [280, 280], [320, 300], [340, 350], [380, 450], [450, 480], [520, 480], [600, 490], [680, 440]],
+    'seville-nagasaki': [[120, 340], [140, 300], [180, 260], [240, 250], [280, 280], [320, 300], [340, 350], [380, 450], [450, 480], [520, 480], [600, 490], [680, 440], [720, 380], [780, 320], [860, 260]],
+
+    'venice-alexandria': [[280, 280], [310, 310], [340, 350]],
+    'venice-calicut': [[280, 280], [310, 310], [340, 350], [380, 450], [450, 480], [520, 420]],
+    'venice-malacca': [[280, 280], [310, 310], [340, 350], [380, 450], [450, 480], [520, 480], [600, 490], [680, 440]],
+    'venice-nagasaki': [[280, 280], [310, 310], [340, 350], [380, 450], [450, 480], [520, 480], [600, 490], [680, 440], [720, 380], [780, 320], [860, 260]],
+
+    'alexandria-calicut': [[340, 350], [380, 450], [450, 480], [520, 420]],
+    'alexandria-malacca': [[340, 350], [380, 450], [450, 480], [520, 480], [600, 490], [680, 440]],
+    'alexandria-nagasaki': [[340, 350], [380, 450], [450, 480], [520, 480], [600, 490], [680, 440], [720, 380], [780, 320], [860, 260]],
+
+    'calicut-malacca': [[520, 420], [560, 460], [620, 480], [680, 440]],
+    'calicut-nagasaki': [[520, 420], [560, 460], [620, 480], [680, 440], [720, 380], [780, 320], [860, 260]],
+
+    'malacca-nagasaki': [[680, 440], [720, 380], [780, 320], [860, 260]]
+};
+
+// Get sea route between two ports (with waypoints to avoid land)
+function getSeaRoute(fromPortId, toPortId) {
+    // Direct route key
+    const routeKey = `${fromPortId}-${toPortId}`;
+    if (seaRoutes[routeKey]) {
+        return seaRoutes[routeKey];
+    }
+
+    // Reverse route key
+    const reverseRouteKey = `${toPortId}-${fromPortId}`;
+    if (seaRoutes[reverseRouteKey]) {
+        return [...seaRoutes[reverseRouteKey]].reverse();
+    }
+
+    // No predefined route, return direct line
+    const fromPort = ports[fromPortId];
+    const toPort = ports[toPortId];
+    return [[fromPort.x, fromPort.y], [toPort.x, toPort.y]];
+}
+
 // Inventory settings by port size (based on historical trade volume)
 const inventorySettings = {
     small: { maxStock: 30, refreshRate: 3 },      // 小規模港: 最大30個、1日3個回復 (長崎)
@@ -1200,21 +1251,54 @@ function showVoyageModal(fromPort, toPort, destinationPortId, estimatedDays) {
                     <rect width="1000" height="600" fill="#1e3a5f"/>
                     <!-- Landmasses -->
                     <g id="landmasses">
-                        <!-- Europe -->
-                        <path d="M 50 250 Q 80 200 150 220 L 200 240 L 280 260 L 320 280 L 350 320 L 340 360 L 300 380 L 250 370 L 200 350 L 150 330 L 100 310 L 70 280 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1.5"/>
-                        <!-- North Africa -->
-                        <path d="M 200 360 L 250 380 L 300 390 L 350 400 L 400 410 L 450 420 L 480 450 L 460 490 L 420 520 L 370 540 L 320 550 L 270 540 L 220 520 L 180 480 L 170 430 L 190 390 Z" fill="#d4a574" stroke="#b48554" stroke-width="1.5"/>
-                        <!-- Middle East and India -->
-                        <path d="M 350 330 L 400 320 L 450 340 L 490 370 L 520 400 L 540 440 L 530 480 L 510 510 L 480 530 L 460 490 L 480 450 L 450 420 L 400 410 L 360 400 L 340 370 Z" fill="#c9a882" stroke="#a98862" stroke-width="1.5"/>
-                        <!-- Southeast Asia -->
-                        <path d="M 540 440 L 580 430 L 620 440 L 660 460 L 690 480 L 710 510 L 700 540 L 670 550 L 630 540 L 600 520 L 570 490 L 550 470 Z" fill="#9b8b6f" stroke="#7b6b4f" stroke-width="1.5"/>
-                        <!-- East Asia (China/Japan region) -->
-                        <path d="M 600 180 L 650 160 L 700 150 L 750 160 L 800 180 L 840 210 L 870 250 L 880 290 L 870 330 L 840 360 L 800 380 L 750 390 L 700 380 L 660 360 L 630 330 L 610 290 L 600 250 L 590 210 Z" fill="#a89878" stroke="#887858" stroke-width="1.5"/>
-                        <!-- Japan islands -->
-                        <ellipse cx="860" cy="260" rx="35" ry="50" fill="#b8a888" stroke="#988868" stroke-width="1.5"/>
+                        <!-- Iberian Peninsula (Spain & Portugal) -->
+                        <path d="M 80 280 L 90 260 L 105 250 L 125 255 L 135 270 L 145 295 L 155 315 L 150 335 L 135 350 L 120 355 L 100 350 L 85 335 L 75 315 L 78 295 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1"/>
+
+                        <!-- France -->
+                        <path d="M 135 250 L 160 235 L 180 230 L 200 235 L 210 250 L 215 270 L 210 290 L 200 310 L 185 325 L 170 330 L 155 325 L 145 310 L 140 290 L 135 270 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1"/>
+
+                        <!-- Italy -->
+                        <path d="M 240 260 L 255 250 L 270 250 L 285 255 L 295 270 L 298 290 L 295 310 L 285 330 L 275 345 L 265 355 L 255 360 L 250 350 L 245 330 L 240 310 L 238 290 L 240 270 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1"/>
+
+                        <!-- Greece and Balkans -->
+                        <path d="M 300 270 L 320 265 L 340 270 L 350 285 L 355 305 L 350 325 L 340 340 L 325 345 L 310 340 L 300 325 L 295 305 L 298 285 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1"/>
+
+                        <!-- North Africa (Morocco to Libya) -->
+                        <path d="M 85 355 L 120 365 L 160 375 L 200 385 L 250 395 L 300 400 L 350 405 L 400 410 L 420 425 L 430 450 L 425 480 L 410 510 L 390 535 L 360 550 L 320 560 L 280 565 L 240 560 L 200 550 L 160 535 L 130 515 L 105 490 L 90 465 L 82 435 L 80 405 L 83 380 Z" fill="#d4a574" stroke="#b48554" stroke-width="1"/>
+
+                        <!-- Egypt and Red Sea coast -->
+                        <path d="M 350 330 L 370 325 L 390 330 L 405 345 L 415 365 L 420 390 L 418 410 L 410 430 L 400 445 L 385 455 L 370 450 L 358 435 L 352 415 L 348 395 L 350 375 L 352 355 Z" fill="#d4a574" stroke="#b48554" stroke-width="1"/>
+
+                        <!-- Arabian Peninsula -->
+                        <path d="M 420 340 L 445 335 L 470 340 L 490 355 L 505 380 L 510 410 L 505 440 L 495 465 L 480 485 L 460 500 L 440 510 L 425 510 L 415 495 L 410 475 L 408 450 L 410 425 L 415 400 L 420 375 L 422 355 Z" fill="#d4a574" stroke="#b48554" stroke-width="1"/>
+
+                        <!-- India -->
+                        <path d="M 480 350 L 510 340 L 540 345 L 565 360 L 580 385 L 585 415 L 580 445 L 565 470 L 545 490 L 520 505 L 495 510 L 480 500 L 470 480 L 465 455 L 465 425 L 470 395 L 478 370 Z" fill="#c9a882" stroke="#a98862" stroke-width="1"/>
+
+                        <!-- Sri Lanka -->
+                        <ellipse cx="540" cy="515" rx="12" ry="18" fill="#c9a882" stroke="#a98862" stroke-width="1"/>
+
+                        <!-- Southeast Asia (Indochina and Malay Peninsula) -->
+                        <path d="M 585 395 L 610 390 L 635 395 L 655 410 L 670 430 L 680 455 L 685 480 L 680 505 L 670 525 L 655 538 L 635 545 L 615 545 L 595 538 L 580 525 L 570 505 L 565 480 L 565 455 L 572 430 L 580 410 Z" fill="#9b8b6f" stroke="#7b6b4f" stroke-width="1"/>
+
+                        <!-- Sumatra and Java -->
+                        <path d="M 620 545 L 650 548 L 680 550 L 710 545 L 730 535 L 740 520 L 735 505 L 720 500 L 700 502 L 680 508 L 660 515 L 640 525 L 625 535 Z" fill="#9b8b6f" stroke="#7b6b4f" stroke-width="1"/>
+
+                        <!-- Borneo -->
+                        <path d="M 710 460 L 735 455 L 755 462 L 765 478 L 765 495 L 755 510 L 735 518 L 715 515 L 700 505 L 695 490 L 698 475 Z" fill="#9b8b6f" stroke="#7b6b4f" stroke-width="1"/>
+
+                        <!-- China mainland -->
+                        <path d="M 620 200 L 660 180 L 700 170 L 740 175 L 780 190 L 810 215 L 830 245 L 840 280 L 840 315 L 830 345 L 810 365 L 780 378 L 745 385 L 710 385 L 680 378 L 655 365 L 635 345 L 620 320 L 610 290 L 605 260 L 608 230 Z" fill="#a89878" stroke="#887858" stroke-width="1"/>
+
+                        <!-- Korea -->
+                        <path d="M 820 210 L 835 200 L 850 205 L 860 220 L 865 240 L 860 260 L 850 275 L 835 280 L 820 275 L 812 260 L 810 240 L 815 225 Z" fill="#a89878" stroke="#887858" stroke-width="1"/>
+
+                        <!-- Japan -->
+                        <path d="M 850 220 L 870 210 L 890 215 L 905 230 L 910 250 L 908 270 L 900 290 L 885 305 L 865 310 L 850 305 L 840 290 L 838 270 L 842 250 L 848 235 Z" fill="#b8a888" stroke="#988868" stroke-width="1"/>
+                        <ellipse cx="875" cy="275" rx="18" ry="25" fill="#b8a888" stroke="#988868" stroke-width="1"/>
                     </g>
                     <!-- Route line -->
-                    <line id="voyage-route-line" stroke="#4a9eff" stroke-width="2" stroke-dasharray="5,5" opacity="0.6"/>
+                    <polyline id="voyage-route-line" stroke="#4a9eff" stroke-width="2" stroke-dasharray="5,5" opacity="0.6" fill="none"/>
                     <!-- Ports will be added here -->
                     <g id="voyage-ports"></g>
                     <!-- Ship icon -->
@@ -1279,21 +1363,54 @@ function showVoyageModalInProgress(fromPort, toPort, currentDaysElapsed, totalDa
                     <rect width="1000" height="600" fill="#1e3a5f"/>
                     <!-- Landmasses -->
                     <g id="landmasses">
-                        <!-- Europe -->
-                        <path d="M 50 250 Q 80 200 150 220 L 200 240 L 280 260 L 320 280 L 350 320 L 340 360 L 300 380 L 250 370 L 200 350 L 150 330 L 100 310 L 70 280 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1.5"/>
-                        <!-- North Africa -->
-                        <path d="M 200 360 L 250 380 L 300 390 L 350 400 L 400 410 L 450 420 L 480 450 L 460 490 L 420 520 L 370 540 L 320 550 L 270 540 L 220 520 L 180 480 L 170 430 L 190 390 Z" fill="#d4a574" stroke="#b48554" stroke-width="1.5"/>
-                        <!-- Middle East and India -->
-                        <path d="M 350 330 L 400 320 L 450 340 L 490 370 L 520 400 L 540 440 L 530 480 L 510 510 L 480 530 L 460 490 L 480 450 L 450 420 L 400 410 L 360 400 L 340 370 Z" fill="#c9a882" stroke="#a98862" stroke-width="1.5"/>
-                        <!-- Southeast Asia -->
-                        <path d="M 540 440 L 580 430 L 620 440 L 660 460 L 690 480 L 710 510 L 700 540 L 670 550 L 630 540 L 600 520 L 570 490 L 550 470 Z" fill="#9b8b6f" stroke="#7b6b4f" stroke-width="1.5"/>
-                        <!-- East Asia (China/Japan region) -->
-                        <path d="M 600 180 L 650 160 L 700 150 L 750 160 L 800 180 L 840 210 L 870 250 L 880 290 L 870 330 L 840 360 L 800 380 L 750 390 L 700 380 L 660 360 L 630 330 L 610 290 L 600 250 L 590 210 Z" fill="#a89878" stroke="#887858" stroke-width="1.5"/>
-                        <!-- Japan islands -->
-                        <ellipse cx="860" cy="260" rx="35" ry="50" fill="#b8a888" stroke="#988868" stroke-width="1.5"/>
+                        <!-- Iberian Peninsula (Spain & Portugal) -->
+                        <path d="M 80 280 L 90 260 L 105 250 L 125 255 L 135 270 L 145 295 L 155 315 L 150 335 L 135 350 L 120 355 L 100 350 L 85 335 L 75 315 L 78 295 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1"/>
+
+                        <!-- France -->
+                        <path d="M 135 250 L 160 235 L 180 230 L 200 235 L 210 250 L 215 270 L 210 290 L 200 310 L 185 325 L 170 330 L 155 325 L 145 310 L 140 290 L 135 270 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1"/>
+
+                        <!-- Italy -->
+                        <path d="M 240 260 L 255 250 L 270 250 L 285 255 L 295 270 L 298 290 L 295 310 L 285 330 L 275 345 L 265 355 L 255 360 L 250 350 L 245 330 L 240 310 L 238 290 L 240 270 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1"/>
+
+                        <!-- Greece and Balkans -->
+                        <path d="M 300 270 L 320 265 L 340 270 L 350 285 L 355 305 L 350 325 L 340 340 L 325 345 L 310 340 L 300 325 L 295 305 L 298 285 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1"/>
+
+                        <!-- North Africa (Morocco to Libya) -->
+                        <path d="M 85 355 L 120 365 L 160 375 L 200 385 L 250 395 L 300 400 L 350 405 L 400 410 L 420 425 L 430 450 L 425 480 L 410 510 L 390 535 L 360 550 L 320 560 L 280 565 L 240 560 L 200 550 L 160 535 L 130 515 L 105 490 L 90 465 L 82 435 L 80 405 L 83 380 Z" fill="#d4a574" stroke="#b48554" stroke-width="1"/>
+
+                        <!-- Egypt and Red Sea coast -->
+                        <path d="M 350 330 L 370 325 L 390 330 L 405 345 L 415 365 L 420 390 L 418 410 L 410 430 L 400 445 L 385 455 L 370 450 L 358 435 L 352 415 L 348 395 L 350 375 L 352 355 Z" fill="#d4a574" stroke="#b48554" stroke-width="1"/>
+
+                        <!-- Arabian Peninsula -->
+                        <path d="M 420 340 L 445 335 L 470 340 L 490 355 L 505 380 L 510 410 L 505 440 L 495 465 L 480 485 L 460 500 L 440 510 L 425 510 L 415 495 L 410 475 L 408 450 L 410 425 L 415 400 L 420 375 L 422 355 Z" fill="#d4a574" stroke="#b48554" stroke-width="1"/>
+
+                        <!-- India -->
+                        <path d="M 480 350 L 510 340 L 540 345 L 565 360 L 580 385 L 585 415 L 580 445 L 565 470 L 545 490 L 520 505 L 495 510 L 480 500 L 470 480 L 465 455 L 465 425 L 470 395 L 478 370 Z" fill="#c9a882" stroke="#a98862" stroke-width="1"/>
+
+                        <!-- Sri Lanka -->
+                        <ellipse cx="540" cy="515" rx="12" ry="18" fill="#c9a882" stroke="#a98862" stroke-width="1"/>
+
+                        <!-- Southeast Asia (Indochina and Malay Peninsula) -->
+                        <path d="M 585 395 L 610 390 L 635 395 L 655 410 L 670 430 L 680 455 L 685 480 L 680 505 L 670 525 L 655 538 L 635 545 L 615 545 L 595 538 L 580 525 L 570 505 L 565 480 L 565 455 L 572 430 L 580 410 Z" fill="#9b8b6f" stroke="#7b6b4f" stroke-width="1"/>
+
+                        <!-- Sumatra and Java -->
+                        <path d="M 620 545 L 650 548 L 680 550 L 710 545 L 730 535 L 740 520 L 735 505 L 720 500 L 700 502 L 680 508 L 660 515 L 640 525 L 625 535 Z" fill="#9b8b6f" stroke="#7b6b4f" stroke-width="1"/>
+
+                        <!-- Borneo -->
+                        <path d="M 710 460 L 735 455 L 755 462 L 765 478 L 765 495 L 755 510 L 735 518 L 715 515 L 700 505 L 695 490 L 698 475 Z" fill="#9b8b6f" stroke="#7b6b4f" stroke-width="1"/>
+
+                        <!-- China mainland -->
+                        <path d="M 620 200 L 660 180 L 700 170 L 740 175 L 780 190 L 810 215 L 830 245 L 840 280 L 840 315 L 830 345 L 810 365 L 780 378 L 745 385 L 710 385 L 680 378 L 655 365 L 635 345 L 620 320 L 610 290 L 605 260 L 608 230 Z" fill="#a89878" stroke="#887858" stroke-width="1"/>
+
+                        <!-- Korea -->
+                        <path d="M 820 210 L 835 200 L 850 205 L 860 220 L 865 240 L 860 260 L 850 275 L 835 280 L 820 275 L 812 260 L 810 240 L 815 225 Z" fill="#a89878" stroke="#887858" stroke-width="1"/>
+
+                        <!-- Japan -->
+                        <path d="M 850 220 L 870 210 L 890 215 L 905 230 L 910 250 L 908 270 L 900 290 L 885 305 L 865 310 L 850 305 L 840 290 L 838 270 L 842 250 L 848 235 Z" fill="#b8a888" stroke="#988868" stroke-width="1"/>
+                        <ellipse cx="875" cy="275" rx="18" ry="25" fill="#b8a888" stroke="#988868" stroke-width="1"/>
                     </g>
                     <!-- Route line -->
-                    <line id="voyage-route-line" stroke="#4a9eff" stroke-width="2" stroke-dasharray="5,5" opacity="0.6"/>
+                    <polyline id="voyage-route-line" stroke="#4a9eff" stroke-width="2" stroke-dasharray="5,5" opacity="0.6" fill="none"/>
                     <!-- Ports will be added here -->
                     <g id="voyage-ports"></g>
                     <!-- Ship icon -->
@@ -1336,11 +1453,17 @@ function initializeVoyageMap(fromPortId, toPortId) {
     const fromPort = ports[fromPortId];
     const toPort = ports[toPortId];
 
-    // Calculate viewport bounds with padding
-    const minX = Math.min(fromPort.x, toPort.x);
-    const maxX = Math.max(fromPort.x, toPort.x);
-    const minY = Math.min(fromPort.y, toPort.y);
-    const maxY = Math.max(fromPort.y, toPort.y);
+    // Get the sea route with waypoints
+    const route = getSeaRoute(fromPortId, toPortId);
+
+    // Calculate viewport bounds with padding (considering all waypoints)
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const [x, y] of route) {
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+    }
 
     const padding = 100;
     const viewBoxX = Math.max(0, minX - padding);
@@ -1352,12 +1475,10 @@ function initializeVoyageMap(fromPortId, toPortId) {
     const svg = document.getElementById('voyage-map');
     svg.setAttribute('viewBox', `${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`);
 
-    // Draw route line
+    // Draw route line as a polyline through waypoints
     const routeLine = document.getElementById('voyage-route-line');
-    routeLine.setAttribute('x1', fromPort.x);
-    routeLine.setAttribute('y1', fromPort.y);
-    routeLine.setAttribute('x2', toPort.x);
-    routeLine.setAttribute('y2', toPort.y);
+    const pointsString = route.map(([x, y]) => `${x},${y}`).join(' ');
+    routeLine.setAttribute('points', pointsString);
 
     // Add port markers
     const portsGroup = document.getElementById('voyage-ports');
@@ -1407,18 +1528,48 @@ function initializeVoyageMap(fromPortId, toPortId) {
 
     // Initialize ship at start position
     const shipIcon = document.getElementById('voyage-ship-icon');
-    shipIcon.setAttribute('x', fromPort.x);
-    shipIcon.setAttribute('y', fromPort.y);
+    shipIcon.setAttribute('x', route[0][0]);
+    shipIcon.setAttribute('y', route[0][1]);
 }
 
 // Update ship position based on voyage progress
 function updateShipPosition(progress) {
-    const fromPort = ports[gameState.voyageStartPort];
-    const toPort = ports[gameState.voyageDestinationPort];
+    const fromPortId = gameState.voyageStartPort;
+    const toPortId = gameState.voyageDestinationPort;
 
-    // Interpolate position
-    const x = fromPort.x + (toPort.x - fromPort.x) * progress;
-    const y = fromPort.y + (toPort.y - fromPort.y) * progress;
+    // Get the sea route with waypoints
+    const route = getSeaRoute(fromPortId, toPortId);
+
+    // Calculate total route length
+    let totalLength = 0;
+    const segmentLengths = [];
+    for (let i = 0; i < route.length - 1; i++) {
+        const [x1, y1] = route[i];
+        const [x2, y2] = route[i + 1];
+        const segmentLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        segmentLengths.push(segmentLength);
+        totalLength += segmentLength;
+    }
+
+    // Find the current position along the route based on progress
+    const targetDistance = progress * totalLength;
+    let accumulatedDistance = 0;
+    let x = route[0][0];
+    let y = route[0][1];
+
+    for (let i = 0; i < route.length - 1; i++) {
+        const segmentLength = segmentLengths[i];
+        if (accumulatedDistance + segmentLength >= targetDistance) {
+            // The ship is in this segment
+            const segmentProgress = (targetDistance - accumulatedDistance) / segmentLength;
+            const [x1, y1] = route[i];
+            const [x2, y2] = route[i + 1];
+            x = x1 + (x2 - x1) * segmentProgress;
+            y = y1 + (y2 - y1) * segmentProgress;
+            break;
+        }
+        accumulatedDistance += segmentLength;
+    }
 
     const shipIcon = document.getElementById('voyage-ship-icon');
     if (shipIcon) {
@@ -1721,6 +1872,7 @@ if (typeof module !== 'undefined' && module.exports) {
         goods,
         portInventory,
         portDistances,
+        seaRoutes,
         inventorySettings,
         calculateRequiredSupplies,
         hasEnoughSupplies,
@@ -1736,6 +1888,7 @@ if (typeof module !== 'undefined' && module.exports) {
         getPrice,
         saveGame,
         loadGame,
+        getSeaRoute,
         initializeVoyageMap,
         updateShipPosition
     };
