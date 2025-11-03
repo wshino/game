@@ -1198,6 +1198,21 @@ function showVoyageModal(fromPort, toPort, destinationPortId, estimatedDays) {
                 <svg id="voyage-map" class="voyage-map" viewBox="0 0 1000 600">
                     <!-- Ocean background -->
                     <rect width="1000" height="600" fill="#1e3a5f"/>
+                    <!-- Landmasses -->
+                    <g id="landmasses">
+                        <!-- Europe -->
+                        <path d="M 50 250 Q 80 200 150 220 L 200 240 L 280 260 L 320 280 L 350 320 L 340 360 L 300 380 L 250 370 L 200 350 L 150 330 L 100 310 L 70 280 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1.5"/>
+                        <!-- North Africa -->
+                        <path d="M 200 360 L 250 380 L 300 390 L 350 400 L 400 410 L 450 420 L 480 450 L 460 490 L 420 520 L 370 540 L 320 550 L 270 540 L 220 520 L 180 480 L 170 430 L 190 390 Z" fill="#d4a574" stroke="#b48554" stroke-width="1.5"/>
+                        <!-- Middle East and India -->
+                        <path d="M 350 330 L 400 320 L 450 340 L 490 370 L 520 400 L 540 440 L 530 480 L 510 510 L 480 530 L 460 490 L 480 450 L 450 420 L 400 410 L 360 400 L 340 370 Z" fill="#c9a882" stroke="#a98862" stroke-width="1.5"/>
+                        <!-- Southeast Asia -->
+                        <path d="M 540 440 L 580 430 L 620 440 L 660 460 L 690 480 L 710 510 L 700 540 L 670 550 L 630 540 L 600 520 L 570 490 L 550 470 Z" fill="#9b8b6f" stroke="#7b6b4f" stroke-width="1.5"/>
+                        <!-- East Asia (China/Japan region) -->
+                        <path d="M 600 180 L 650 160 L 700 150 L 750 160 L 800 180 L 840 210 L 870 250 L 880 290 L 870 330 L 840 360 L 800 380 L 750 390 L 700 380 L 660 360 L 630 330 L 610 290 L 600 250 L 590 210 Z" fill="#a89878" stroke="#887858" stroke-width="1.5"/>
+                        <!-- Japan islands -->
+                        <ellipse cx="860" cy="260" rx="35" ry="50" fill="#b8a888" stroke="#988868" stroke-width="1.5"/>
+                    </g>
                     <!-- Route line -->
                     <line id="voyage-route-line" stroke="#4a9eff" stroke-width="2" stroke-dasharray="5,5" opacity="0.6"/>
                     <!-- Ports will be added here -->
@@ -1262,6 +1277,21 @@ function showVoyageModalInProgress(fromPort, toPort, currentDaysElapsed, totalDa
                 <svg id="voyage-map" class="voyage-map" viewBox="0 0 1000 600">
                     <!-- Ocean background -->
                     <rect width="1000" height="600" fill="#1e3a5f"/>
+                    <!-- Landmasses -->
+                    <g id="landmasses">
+                        <!-- Europe -->
+                        <path d="M 50 250 Q 80 200 150 220 L 200 240 L 280 260 L 320 280 L 350 320 L 340 360 L 300 380 L 250 370 L 200 350 L 150 330 L 100 310 L 70 280 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1.5"/>
+                        <!-- North Africa -->
+                        <path d="M 200 360 L 250 380 L 300 390 L 350 400 L 400 410 L 450 420 L 480 450 L 460 490 L 420 520 L 370 540 L 320 550 L 270 540 L 220 520 L 180 480 L 170 430 L 190 390 Z" fill="#d4a574" stroke="#b48554" stroke-width="1.5"/>
+                        <!-- Middle East and India -->
+                        <path d="M 350 330 L 400 320 L 450 340 L 490 370 L 520 400 L 540 440 L 530 480 L 510 510 L 480 530 L 460 490 L 480 450 L 450 420 L 400 410 L 360 400 L 340 370 Z" fill="#c9a882" stroke="#a98862" stroke-width="1.5"/>
+                        <!-- Southeast Asia -->
+                        <path d="M 540 440 L 580 430 L 620 440 L 660 460 L 690 480 L 710 510 L 700 540 L 670 550 L 630 540 L 600 520 L 570 490 L 550 470 Z" fill="#9b8b6f" stroke="#7b6b4f" stroke-width="1.5"/>
+                        <!-- East Asia (China/Japan region) -->
+                        <path d="M 600 180 L 650 160 L 700 150 L 750 160 L 800 180 L 840 210 L 870 250 L 880 290 L 870 330 L 840 360 L 800 380 L 750 390 L 700 380 L 660 360 L 630 330 L 610 290 L 600 250 L 590 210 Z" fill="#a89878" stroke="#887858" stroke-width="1.5"/>
+                        <!-- Japan islands -->
+                        <ellipse cx="860" cy="260" rx="35" ry="50" fill="#b8a888" stroke="#988868" stroke-width="1.5"/>
+                    </g>
                     <!-- Route line -->
                     <line id="voyage-route-line" stroke="#4a9eff" stroke-width="2" stroke-dasharray="5,5" opacity="0.6"/>
                     <!-- Ports will be added here -->
@@ -1425,7 +1455,8 @@ function simulateVoyage(destinationPortId, estimatedDays) {
     const updateVoyageUI = () => {
         const now = Date.now();
         const elapsedRealTime = now - gameState.voyageStartTime;
-        const daysElapsed = Math.floor(elapsedRealTime / TIME_PER_DAY);
+        const daysElapsedExact = elapsedRealTime / TIME_PER_DAY; // Exact days with decimals for smooth animation
+        const daysElapsed = Math.floor(daysElapsedExact); // Integer days for display and weather changes
         const actualDaysNeeded = gameState.voyageActualDays;
 
         // Random weather change (20% chance per day)
@@ -1464,8 +1495,8 @@ function simulateVoyage(destinationPortId, estimatedDays) {
             weatherEffect.className = 'weather-effect ' + currentWeather.id;
         }
 
-        // Update ship position on map
-        const progress = Math.min(1.0, daysElapsed / actualDaysNeeded);
+        // Update ship position on map using exact days for smooth animation
+        const progress = Math.min(1.0, daysElapsedExact / actualDaysNeeded);
         updateShipPosition(progress);
 
         // Check if voyage is complete
