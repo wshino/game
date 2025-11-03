@@ -1284,7 +1284,7 @@ function showVoyageModal(fromPort, toPort, destinationPortId, estimatedDays) {
                     <!-- Using Wikimedia Commons Equirectangular world map -->
                     <image id="world-map-image" x="0" y="0" width="1000" height="600"
                            href="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Equirectangular_projection_topographic_map.jpg/2560px-Equirectangular_projection_topographic_map.jpg"
-                           preserveAspectRatio="xMidYMid slice"
+                           preserveAspectRatio="none"
                            crossorigin="anonymous"
                            onload="console.log('World map loaded successfully')"
                            onerror="console.warn('Failed to load world map image, using fallback');this.style.display='none';document.getElementById('landmasses').style.display='block'"/>
@@ -1404,7 +1404,7 @@ function showVoyageModalInProgress(fromPort, toPort, currentDaysElapsed, totalDa
                     <!-- Using Wikimedia Commons Equirectangular world map -->
                     <image id="world-map-image" x="0" y="0" width="1000" height="600"
                            href="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Equirectangular_projection_topographic_map.jpg/2560px-Equirectangular_projection_topographic_map.jpg"
-                           preserveAspectRatio="xMidYMid slice"
+                           preserveAspectRatio="none"
                            crossorigin="anonymous"
                            onload="console.log('World map loaded successfully')"
                            onerror="console.warn('Failed to load world map image, using fallback');this.style.display='none';document.getElementById('landmasses').style.display='block'"/>
