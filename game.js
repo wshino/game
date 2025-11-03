@@ -1256,8 +1256,16 @@ function showVoyageModal(fromPort, toPort, destinationPortId, estimatedDays) {
                 <svg id="voyage-map" class="voyage-map" viewBox="0 0 1000 600">
                     <!-- Ocean background -->
                     <rect width="1000" height="600" fill="#1e3a5f"/>
-                    <!-- Landmasses -->
-                    <g id="landmasses">
+                    <!-- High resolution world map bitmap image -->
+                    <!-- Using Wikimedia Commons Equirectangular world map -->
+                    <image id="world-map-image" x="0" y="0" width="1000" height="600"
+                           href="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Equirectangular_projection_topographic_map.jpg/2560px-Equirectangular_projection_topographic_map.jpg"
+                           preserveAspectRatio="xMidYMid slice"
+                           crossorigin="anonymous"
+                           onload="console.log('World map loaded successfully')"
+                           onerror="console.warn('Failed to load world map image, using fallback');this.style.display='none';document.getElementById('landmasses').style.display='block'"/>
+                    <!-- Fallback: Low resolution landmasses (shown if image fails to load) -->
+                    <g id="landmasses" style="display: none;">
                         <!-- Iberian Peninsula (Spain & Portugal) - リスボン(39,135)とセビリア(60,151) -->
                         <path d="M 20 120 L 30 100 L 45 95 L 60 100 L 75 115 L 85 135 L 90 155 L 85 175 L 70 190 L 50 195 L 30 185 L 20 165 L 15 145 L 18 125 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1"/>
 
@@ -1368,8 +1376,16 @@ function showVoyageModalInProgress(fromPort, toPort, currentDaysElapsed, totalDa
                 <svg id="voyage-map" class="voyage-map" viewBox="0 0 1000 600">
                     <!-- Ocean background -->
                     <rect width="1000" height="600" fill="#1e3a5f"/>
-                    <!-- Landmasses -->
-                    <g id="landmasses">
+                    <!-- High resolution world map bitmap image -->
+                    <!-- Using Wikimedia Commons Equirectangular world map -->
+                    <image id="world-map-image" x="0" y="0" width="1000" height="600"
+                           href="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Equirectangular_projection_topographic_map.jpg/2560px-Equirectangular_projection_topographic_map.jpg"
+                           preserveAspectRatio="xMidYMid slice"
+                           crossorigin="anonymous"
+                           onload="console.log('World map loaded successfully')"
+                           onerror="console.warn('Failed to load world map image, using fallback');this.style.display='none';document.getElementById('landmasses').style.display='block'"/>
+                    <!-- Fallback: Low resolution landmasses (shown if image fails to load) -->
+                    <g id="landmasses" style="display: none;">
                         <!-- Iberian Peninsula (Spain & Portugal) - リスボン(39,135)とセビリア(60,151) -->
                         <path d="M 20 120 L 30 100 L 45 95 L 60 100 L 75 115 L 85 135 L 90 155 L 85 175 L 70 190 L 50 195 L 30 185 L 20 165 L 15 145 L 18 125 Z" fill="#8b7355" stroke="#6b5335" stroke-width="1"/>
 
