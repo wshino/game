@@ -1997,17 +1997,24 @@ function executeAutopilotDecision() {
         } else if (bestTrade.action === 'buy') {
             // Buy goods at current port
             const goodId = bestTrade.goodId;
+            const destinationPortId = bestTrade.destinationPort;
             const buyPrice = getPrice(goodId, true);
             const portStock = getPortStock(gameState.currentPort, goodId);
             const cargoSpace = getCargoSpace();
             
-            // Calculate how many to buy (max 80% of cargo for supplies)
-            const maxByMoney = Math.floor(gameState.gold * 0.8 / buyPrice);
-            const maxByCargo = Math.floor(cargoSpace * 0.8);
+            // Calculate travel cost to destination
+            const distance = portDistances[gameState.currentPort][destinationPortId];
+            const estimatedDays = Math.max(1, Math.round(distance / gameState.ship.speed));
+            const supplyCost = calculateSupplyCost(estimatedDays);
+            
+            // Reserve money for supplies - calculate how many to buy
+            const availableMoneyForGoods = Math.max(0, gameState.gold - supplyCost - 100);
+            const maxByMoney = Math.floor(availableMoneyForGoods * 0.7 / buyPrice);
+            const maxByCargo = Math.floor(cargoSpace * 0.7);
             const maxByStock = portStock;
             const maxCanBuy = Math.max(1, Math.min(maxByMoney, maxByCargo, maxByStock));
             
-            if (maxCanBuy > 0 && gameState.gold >= buyPrice) {
+            if (maxCanBuy > 0 && availableMoneyForGoods >= buyPrice * 5) {
                 const totalCost = maxCanBuy * buyPrice;
                 gameState.gold -= totalCost;
                 gameState.inventory[goodId] = (gameState.inventory[goodId] || 0) + maxCanBuy;
@@ -2074,6 +2081,7 @@ function findBestTrade() {
         // Check if there's a significantly better port to sell at
         let bestSellPort = currentPortId;
         let bestSellPotential = bestSellValue;
+        let bestSupplyCost = 0;
         
         for (const destPortId in ports) {
             if (destPortId === currentPortId) continue;
@@ -2100,18 +2108,19 @@ function findBestTrade() {
             // Net benefit of traveling to sell there
             const netBenefit = destSellValue - bestSellValue - supplyCost;
             
-            // Only travel if net benefit is significant (at least 10% more profit)
-            if (netBenefit > bestSellValue * 0.1 && destSellValue > bestSellPotential) {
+            // Only travel if we have enough money for supplies AND net benefit is significant (at least 10% more profit)
+            if (gameState.gold >= supplyCost && netBenefit > bestSellValue * 0.1 && destSellValue > bestSellPotential) {
                 bestSellPotential = destSellValue;
                 bestSellPort = destPortId;
+                bestSupplyCost = supplyCost;
             }
         }
         
-        // If current port is best, sell here
+        // If current port is best OR we don't have money for travel, sell here
         if (bestSellPort === currentPortId) {
             return { action: 'sell' };
         } else {
-            // Travel to better selling port
+            // Travel to better selling port (we verified we have enough money above)
             return {
                 action: 'travel',
                 destinationPort: bestSellPort
@@ -2146,13 +2155,14 @@ function findBestTrade() {
                 const estimatedDays = Math.max(1, Math.round(distance / gameState.ship.speed));
                 const supplyCost = calculateSupplyCost(estimatedDays);
                 
-                // Calculate potential quantity to buy (conservative estimate)
+                // Calculate potential quantity to buy - must reserve money for supplies!
                 const cargoSpace = getCargoSpace();
-                const maxByMoney = Math.floor(gameState.gold * 0.7 / buyPrice);
+                const availableMoneyForGoods = Math.max(0, gameState.gold - supplyCost - 100); // Reserve supply cost + 100G safety
+                const maxByMoney = Math.floor(availableMoneyForGoods * 0.7 / buyPrice);
                 const maxByCargo = Math.floor(cargoSpace * 0.7);
                 const estimatedQuantity = Math.min(maxByMoney, maxByCargo, portStock, 50);
                 
-                if (estimatedQuantity > 0) {
+                if (estimatedQuantity > 0 && availableMoneyForGoods > buyPrice * 5) {
                     // Net profit = revenue - cost - travel
                     const revenue = sellPrice * estimatedQuantity;
                     const cost = buyPrice * estimatedQuantity;
