@@ -463,13 +463,24 @@ header h1 {
 
 .voyage-animation {
     position: relative;
-    height: 150px;
+    height: 400px;
     background: linear-gradient(to bottom,
         rgba(30, 144, 255, 0.3) 0%,
         rgba(65, 105, 225, 0.5) 100%);
     border-radius: 15px;
     margin-bottom: 20px;
     overflow: hidden;
+}
+
+.voyage-map {
+    width: 100%;
+    height: 100%;
+    border-radius: 15px;
+}
+
+.voyage-ship-icon {
+    transition: x 0.5s ease-out, y 0.5s ease-out;
+    filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 .voyage-ship {
