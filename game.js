@@ -29,49 +29,63 @@ const ports = {
         emoji: '🇵🇹',
         description: 'ポルトガルの首都。冒険の始まりの地。',
         size: 'large', // 大規模港 (人口10万人以上、大航海時代の中心地)
-        historicalNote: '15世紀末から16世紀にかけて、大航海時代の中心として急成長。人口10万人超。'
+        historicalNote: '15世紀末から16世紀にかけて、大航海時代の中心として急成長。人口10万人超。',
+        x: 100,  // Map coordinates
+        y: 300
     },
     seville: {
         name: 'セビリア',
         emoji: '🇪🇸',
         description: 'スペインの港町。新大陸への玄関口。',
         size: 'large', // 大規模港 (新大陸貿易独占港、人口10万人規模)
-        historicalNote: '16世紀、新大陸との貿易を独占し、スペイン随一の商業都市に成長。'
+        historicalNote: '16世紀、新大陸との貿易を独占し、スペイン随一の商業都市に成長。',
+        x: 120,
+        y: 340
     },
     venice: {
         name: 'ヴェネツィア',
         emoji: '🇮🇹',
         description: '水の都。東方貿易の中心地。',
         size: 'very_large', // 最大規模港 (人口15-18万人、当時のヨーロッパ最大級都市)
-        historicalNote: '15世紀、人口15-18万人を擁し、地中海貿易を支配する最大級の商業共和国。'
+        historicalNote: '15世紀、人口15-18万人を擁し、地中海貿易を支配する最大級の商業共和国。',
+        x: 280,
+        y: 280
     },
     alexandria: {
         name: 'アレクサンドリア',
         emoji: '🇪🇬',
         description: 'エジプトの古都。香辛料の集積地。',
         size: 'medium', // 中規模港 (マムルーク朝/オスマン朝下で往時より衰退)
-        historicalNote: '15世紀マムルーク朝下で往時の栄華からは衰退も、依然として香辛料貿易の要衝。'
+        historicalNote: '15世紀マムルーク朝下で往時の栄華からは衰退も、依然として香辛料貿易の要衝。',
+        x: 340,
+        y: 350
     },
     calicut: {
         name: 'カリカット',
         emoji: '🇮🇳',
         description: 'インドの港町。胡椒の産地。',
         size: 'medium', // 中規模港 (インド西海岸の重要な香辛料貿易港)
-        historicalNote: '15-16世紀、インド西海岸最大の香辛料貿易港。ヴァスコ・ダ・ガマが到達。'
+        historicalNote: '15-16世紀、インド西海岸最大の香辛料貿易港。ヴァスコ・ダ・ガマが到達。',
+        x: 520,
+        y: 420
     },
     malacca: {
         name: 'マラッカ',
         emoji: '🇲🇾',
         description: '東南アジアの交易拠点。',
         size: 'medium', // 中規模港 (マラッカ王国の首都、東南アジア貿易の中心)
-        historicalNote: '15世紀、マラッカ王国の首都として東西貿易の要衝。1511年ポルトガルに征服。'
+        historicalNote: '15世紀、マラッカ王国の首都として東西貿易の要衝。1511年ポルトガルに征服。',
+        x: 680,
+        y: 440
     },
     nagasaki: {
         name: '長崎',
         emoji: '🇯🇵',
         description: '日本の港町。銀と絹の取引が盛ん。',
         size: 'small', // 小規模港 (16世紀半ばまで小さな漁村、1570年代に貿易港化)
-        historicalNote: '1570年代、ポルトガル貿易の拠点として開港。それまでは小さな漁村。'
+        historicalNote: '1570年代、ポルトガル貿易の拠点として開港。それまでは小さな漁村。',
+        x: 860,
+        y: 260
     }
 };
 
@@ -1149,6 +1163,10 @@ function showVoyageModal(fromPort, toPort, destinationPortId, estimatedDays) {
         existingModal.remove();
     }
 
+    // Get port IDs from names
+    const fromPortId = gameState.voyageStartPort;
+    const toPortId = destinationPortId;
+
     // Create modal overlay
     const modal = document.createElement('div');
     modal.id = 'voyage-modal';
@@ -1177,13 +1195,25 @@ function showVoyageModal(fromPort, toPort, destinationPortId, estimatedDays) {
                 </div>
             </div>
             <div class="voyage-animation">
-                <div id="voyage-ship" class="voyage-ship">🚢</div>
+                <svg id="voyage-map" class="voyage-map" viewBox="0 0 1000 600">
+                    <!-- Ocean background -->
+                    <rect width="1000" height="600" fill="#1e3a5f"/>
+                    <!-- Route line -->
+                    <line id="voyage-route-line" stroke="#4a9eff" stroke-width="2" stroke-dasharray="5,5" opacity="0.6"/>
+                    <!-- Ports will be added here -->
+                    <g id="voyage-ports"></g>
+                    <!-- Ship icon -->
+                    <text id="voyage-ship-icon" class="voyage-ship-icon" font-size="32" text-anchor="middle" dominant-baseline="middle">🚢</text>
+                </svg>
                 <div id="voyage-weather-effect" class="weather-effect"></div>
             </div>
             <div id="voyage-log" class="voyage-log"></div>
         </div>
     `;
     document.body.appendChild(modal);
+
+    // Initialize map with ports and route
+    initializeVoyageMap(fromPortId, toPortId);
 
     // Start voyage simulation
     simulateVoyage(destinationPortId, estimatedDays);
@@ -1196,6 +1226,10 @@ function showVoyageModalInProgress(fromPort, toPort, currentDaysElapsed, totalDa
     if (existingModal) {
         existingModal.remove();
     }
+
+    // Get port IDs from game state
+    const fromPortId = gameState.voyageStartPort;
+    const toPortId = gameState.voyageDestinationPort;
 
     // Create modal overlay
     const modal = document.createElement('div');
@@ -1225,13 +1259,25 @@ function showVoyageModalInProgress(fromPort, toPort, currentDaysElapsed, totalDa
                 </div>
             </div>
             <div class="voyage-animation">
-                <div id="voyage-ship" class="voyage-ship">🚢</div>
+                <svg id="voyage-map" class="voyage-map" viewBox="0 0 1000 600">
+                    <!-- Ocean background -->
+                    <rect width="1000" height="600" fill="#1e3a5f"/>
+                    <!-- Route line -->
+                    <line id="voyage-route-line" stroke="#4a9eff" stroke-width="2" stroke-dasharray="5,5" opacity="0.6"/>
+                    <!-- Ports will be added here -->
+                    <g id="voyage-ports"></g>
+                    <!-- Ship icon -->
+                    <text id="voyage-ship-icon" class="voyage-ship-icon" font-size="32" text-anchor="middle" dominant-baseline="middle">🚢</text>
+                </svg>
                 <div id="voyage-weather-effect" class="weather-effect"></div>
             </div>
             <div id="voyage-log" class="voyage-log"></div>
         </div>
     `;
     document.body.appendChild(modal);
+
+    // Initialize map with ports and route
+    initializeVoyageMap(fromPortId, toPortId);
 
     const voyageLog = document.getElementById('voyage-log');
     const addVoyageLog = (message) => {
@@ -1253,6 +1299,102 @@ function showVoyageModalInProgress(fromPort, toPort, currentDaysElapsed, totalDa
 
     // Continue voyage simulation
     simulateVoyage(gameState.voyageDestinationPort, gameState.voyageEstimatedDays);
+}
+
+// Initialize the voyage map with ports, route, and viewport
+function initializeVoyageMap(fromPortId, toPortId) {
+    const fromPort = ports[fromPortId];
+    const toPort = ports[toPortId];
+
+    // Calculate viewport bounds with padding
+    const minX = Math.min(fromPort.x, toPort.x);
+    const maxX = Math.max(fromPort.x, toPort.x);
+    const minY = Math.min(fromPort.y, toPort.y);
+    const maxY = Math.max(fromPort.y, toPort.y);
+
+    const padding = 100;
+    const viewBoxX = Math.max(0, minX - padding);
+    const viewBoxY = Math.max(0, minY - padding);
+    const viewBoxWidth = Math.min(1000, (maxX - minX) + padding * 2);
+    const viewBoxHeight = Math.min(600, (maxY - minY) + padding * 2);
+
+    // Update SVG viewBox to focus on the route
+    const svg = document.getElementById('voyage-map');
+    svg.setAttribute('viewBox', `${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`);
+
+    // Draw route line
+    const routeLine = document.getElementById('voyage-route-line');
+    routeLine.setAttribute('x1', fromPort.x);
+    routeLine.setAttribute('y1', fromPort.y);
+    routeLine.setAttribute('x2', toPort.x);
+    routeLine.setAttribute('y2', toPort.y);
+
+    // Add port markers
+    const portsGroup = document.getElementById('voyage-ports');
+
+    // Start port (green)
+    const startPortGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const startCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    startCircle.setAttribute('cx', fromPort.x);
+    startCircle.setAttribute('cy', fromPort.y);
+    startCircle.setAttribute('r', '8');
+    startCircle.setAttribute('fill', '#4ade80');
+    startCircle.setAttribute('stroke', '#fff');
+    startCircle.setAttribute('stroke-width', '2');
+    const startLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    startLabel.setAttribute('x', fromPort.x);
+    startLabel.setAttribute('y', fromPort.y - 15);
+    startLabel.setAttribute('text-anchor', 'middle');
+    startLabel.setAttribute('fill', '#fff');
+    startLabel.setAttribute('font-size', '14');
+    startLabel.setAttribute('font-weight', 'bold');
+    startLabel.textContent = fromPort.name;
+    startPortGroup.appendChild(startCircle);
+    startPortGroup.appendChild(startLabel);
+
+    // Destination port (red)
+    const destPortGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const destCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    destCircle.setAttribute('cx', toPort.x);
+    destCircle.setAttribute('cy', toPort.y);
+    destCircle.setAttribute('r', '8');
+    destCircle.setAttribute('fill', '#f87171');
+    destCircle.setAttribute('stroke', '#fff');
+    destCircle.setAttribute('stroke-width', '2');
+    const destLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    destLabel.setAttribute('x', toPort.x);
+    destLabel.setAttribute('y', toPort.y - 15);
+    destLabel.setAttribute('text-anchor', 'middle');
+    destLabel.setAttribute('fill', '#fff');
+    destLabel.setAttribute('font-size', '14');
+    destLabel.setAttribute('font-weight', 'bold');
+    destLabel.textContent = toPort.name;
+    destPortGroup.appendChild(destCircle);
+    destPortGroup.appendChild(destLabel);
+
+    portsGroup.appendChild(startPortGroup);
+    portsGroup.appendChild(destPortGroup);
+
+    // Initialize ship at start position
+    const shipIcon = document.getElementById('voyage-ship-icon');
+    shipIcon.setAttribute('x', fromPort.x);
+    shipIcon.setAttribute('y', fromPort.y);
+}
+
+// Update ship position based on voyage progress
+function updateShipPosition(progress) {
+    const fromPort = ports[gameState.voyageStartPort];
+    const toPort = ports[gameState.voyageDestinationPort];
+
+    // Interpolate position
+    const x = fromPort.x + (toPort.x - fromPort.x) * progress;
+    const y = fromPort.y + (toPort.y - fromPort.y) * progress;
+
+    const shipIcon = document.getElementById('voyage-ship-icon');
+    if (shipIcon) {
+        shipIcon.setAttribute('x', x);
+        shipIcon.setAttribute('y', y);
+    }
 }
 
 function simulateVoyage(destinationPortId, estimatedDays) {
@@ -1321,6 +1463,10 @@ function simulateVoyage(destinationPortId, estimatedDays) {
         if (weatherEffect) {
             weatherEffect.className = 'weather-effect ' + currentWeather.id;
         }
+
+        // Update ship position on map
+        const progress = Math.min(1.0, daysElapsed / actualDaysNeeded);
+        updateShipPosition(progress);
 
         // Check if voyage is complete
         if (daysElapsed >= actualDaysNeeded) {
@@ -1558,6 +1704,8 @@ if (typeof module !== 'undefined' && module.exports) {
         getCargoUsed,
         getPrice,
         saveGame,
-        loadGame
+        loadGame,
+        initializeVoyageMap,
+        updateShipPosition
     };
 }
