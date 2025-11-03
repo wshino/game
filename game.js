@@ -19,7 +19,18 @@ const gameState = {
     voyageDestinationPort: null, // Destination port
     voyageEstimatedDays: null, // Estimated days for voyage
     voyageActualDays: null, // Actual days needed (may change due to weather)
-    voyageWeatherHistory: [] // Weather changes during voyage
+    voyageWeatherHistory: [], // Weather changes during voyage
+    // Autopilot mode
+    autopilotActive: false, // Is autopilot mode active
+    autopilotStartTime: null, // Real-time timestamp when autopilot started
+    autopilotDurationMinutes: 0, // Duration in minutes
+    autopilotReport: {
+        startGold: 0,
+        startTime: 0,
+        trades: [],
+        voyages: [],
+        totalProfit: 0
+    }
 };
 
 // Port Definitions (based on historical 15-16th century city sizes)
@@ -381,6 +392,18 @@ function loadGame() {
             gameState.voyageEstimatedDays = loadedState.voyageEstimatedDays || null;
             gameState.voyageActualDays = loadedState.voyageActualDays || null;
             gameState.voyageWeatherHistory = loadedState.voyageWeatherHistory || [];
+
+            // Load autopilot data
+            gameState.autopilotActive = loadedState.autopilotActive || false;
+            gameState.autopilotStartTime = loadedState.autopilotStartTime || null;
+            gameState.autopilotDurationMinutes = loadedState.autopilotDurationMinutes || 0;
+            gameState.autopilotReport = loadedState.autopilotReport || {
+                startGold: 0,
+                startTime: 0,
+                trades: [],
+                voyages: [],
+                totalProfit: 0
+            };
 
             // Load port inventory if available
             if (loadedState.portInventory) {
@@ -946,6 +969,7 @@ function updateAll() {
     updateTradeGoods();
     updatePorts();
     updateUpgrades();
+    updateAutopilotUI();
     saveGame(); // Auto-save after any state change
 }
 
@@ -1829,6 +1853,417 @@ function upgradeShip(shipIndex) {
     updateAll();
 }
 
+// ====== Autopilot Functions ======
+
+// Start autopilot mode
+function startAutopilot(durationMinutes) {
+    if (gameState.isVoyaging) {
+        addLog('❌ 航海中はオートパイロットを開始できません');
+        return;
+    }
+    
+    if (durationMinutes < 1 || durationMinutes > 180) {
+        addLog('❌ オートパイロット時間は1分〜180分で設定してください');
+        return;
+    }
+    
+    gameState.autopilotActive = true;
+    gameState.autopilotStartTime = Date.now();
+    gameState.autopilotDurationMinutes = durationMinutes;
+    gameState.autopilotReport = {
+        startGold: gameState.gold,
+        startTime: gameState.gameTime,
+        trades: [],
+        voyages: [],
+        totalProfit: 0
+    };
+    
+    addLog(`🤖 オートパイロット開始！(${durationMinutes}分間)`);
+    addLog('船が自動的に貿易を行います...');
+    
+    saveGame();
+    updateAll();
+    
+    // Start autopilot loop
+    runAutopilotCycle();
+}
+
+// Stop autopilot mode
+function stopAutopilot() {
+    if (!gameState.autopilotActive) {
+        return;
+    }
+    
+    gameState.autopilotActive = false;
+    const report = generateAutopilotReport();
+    showAutopilotReport(report);
+    
+    saveGame();
+    updateAll();
+}
+
+// Check if autopilot should stop
+function checkAutopilotTimeout() {
+    if (!gameState.autopilotActive) {
+        return false;
+    }
+    
+    const elapsed = Date.now() - gameState.autopilotStartTime;
+    const elapsedMinutes = elapsed / 60000;
+    
+    if (elapsedMinutes >= gameState.autopilotDurationMinutes) {
+        stopAutopilot();
+        return true;
+    }
+    
+    return false;
+}
+
+// Run a single autopilot cycle
+function runAutopilotCycle() {
+    if (!gameState.autopilotActive) {
+        return;
+    }
+    
+    // Check timeout
+    if (checkAutopilotTimeout()) {
+        return;
+    }
+    
+    // If currently voyaging, check progress
+    if (gameState.isVoyaging) {
+        setTimeout(() => runAutopilotCycle(), 1000);
+        return;
+    }
+    
+    // Execute autopilot decision
+    executeAutopilotDecision();
+    
+    // Schedule next cycle
+    setTimeout(() => runAutopilotCycle(), 1000);
+}
+
+// Execute autopilot decision (buy/sell/travel)
+function executeAutopilotDecision() {
+    // Find the most profitable trade route
+    const bestTrade = findBestTrade();
+    
+    if (bestTrade) {
+        // If we have goods to sell, sell them first
+        const hasGoodsToSell = Object.keys(gameState.inventory).some(goodId => {
+            return gameState.inventory[goodId] > 0 && goodId !== 'food' && goodId !== 'water';
+        });
+        
+        if (hasGoodsToSell && bestTrade.action === 'sell') {
+            // Sell all profitable goods at current port
+            for (const goodId in gameState.inventory) {
+                if (goodId === 'food' || goodId === 'water') continue;
+                
+                const quantity = gameState.inventory[goodId];
+                if (quantity > 0) {
+                    const sellPrice = getPrice(goodId, false);
+                    const totalValue = sellPrice * quantity;
+                    
+                    gameState.gold += totalValue;
+                    gameState.autopilotReport.trades.push({
+                        port: gameState.currentPort,
+                        action: 'sell',
+                        good: goods[goodId].name,
+                        quantity: quantity,
+                        price: sellPrice,
+                        total: totalValue
+                    });
+                    gameState.inventory[goodId] = 0;
+                }
+            }
+            addLog(`🤖 商品を売却しました`);
+            updateAll();
+        } else if (bestTrade.action === 'buy') {
+            // Buy goods at current port
+            const goodId = bestTrade.goodId;
+            const buyPrice = getPrice(goodId, true);
+            const portStock = getPortStock(gameState.currentPort, goodId);
+            const cargoSpace = getCargoSpace();
+            
+            // Calculate how many to buy (max 80% of cargo for supplies)
+            const maxByMoney = Math.floor(gameState.gold * 0.8 / buyPrice);
+            const maxByCargo = Math.floor(cargoSpace * 0.8);
+            const maxByStock = portStock;
+            const maxCanBuy = Math.max(1, Math.min(maxByMoney, maxByCargo, maxByStock));
+            
+            if (maxCanBuy > 0 && gameState.gold >= buyPrice) {
+                const totalCost = maxCanBuy * buyPrice;
+                gameState.gold -= totalCost;
+                gameState.inventory[goodId] = (gameState.inventory[goodId] || 0) + maxCanBuy;
+                reducePortStock(gameState.currentPort, goodId, maxCanBuy);
+                
+                gameState.autopilotReport.trades.push({
+                    port: gameState.currentPort,
+                    action: 'buy',
+                    good: goods[goodId].name,
+                    quantity: maxCanBuy,
+                    price: buyPrice,
+                    total: totalCost
+                });
+                
+                addLog(`🤖 ${goods[goodId].name}を${maxCanBuy}個購入しました`);
+                updateAll();
+            }
+        } else if (bestTrade.action === 'travel') {
+            // Travel to the best destination
+            const destinationPortId = bestTrade.destinationPort;
+            
+            // Auto-supply before voyage
+            const baseDays = portDistances[gameState.currentPort][destinationPortId];
+            const estimatedDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
+            autoSupplyForVoyage(estimatedDays);
+            
+            // Check if we have enough supplies
+            const suppliesCheck = hasEnoughSupplies(estimatedDays);
+            if (suppliesCheck.hasEnough) {
+                gameState.autopilotReport.voyages.push({
+                    from: ports[gameState.currentPort].name,
+                    to: ports[destinationPortId].name,
+                    days: estimatedDays
+                });
+                
+                addLog(`🤖 ${ports[destinationPortId].name}へ向かいます`);
+                startVoyage(destinationPortId);
+            }
+        }
+    }
+}
+
+// Find the best trade opportunity
+function findBestTrade() {
+    const currentPortId = gameState.currentPort;
+    
+    // Check if we have goods to sell at current port
+    let hasGoods = false;
+    for (const goodId in gameState.inventory) {
+        if (goodId !== 'food' && goodId !== 'water' && gameState.inventory[goodId] > 0) {
+            hasGoods = true;
+            break;
+        }
+    }
+    
+    if (hasGoods) {
+        // Sell goods if we're at a good selling port
+        return { action: 'sell' };
+    }
+    
+    // Find best buy-and-sell opportunity
+    let bestProfit = 0;
+    let bestGoodId = null;
+    let bestDestination = null;
+    
+    for (const goodId in goods) {
+        if (goodId === 'food' || goodId === 'water') continue;
+        
+        const buyPrice = getPrice(goodId, true);
+        const portStock = getPortStock(currentPortId, goodId);
+        
+        if (portStock > 0 && buyPrice > 0) {
+            // Check selling prices at other ports
+            for (const destPortId in ports) {
+                if (destPortId === currentPortId) continue;
+                
+                // Temporarily switch to destination to get sell price
+                const originalPort = gameState.currentPort;
+                gameState.currentPort = destPortId;
+                const sellPrice = getPrice(goodId, false);
+                gameState.currentPort = originalPort;
+                
+                const profit = sellPrice - buyPrice;
+                const distance = portDistances[currentPortId][destPortId];
+                const profitPerDay = profit / distance;
+                
+                if (profitPerDay > bestProfit) {
+                    bestProfit = profitPerDay;
+                    bestGoodId = goodId;
+                    bestDestination = destPortId;
+                }
+            }
+        }
+    }
+    
+    if (bestGoodId && bestProfit > 0) {
+        // If we have cargo space and money, buy goods
+        const cargoSpace = getCargoSpace();
+        if (cargoSpace > 10 && gameState.gold > getPrice(bestGoodId, true) * 5) {
+            return {
+                action: 'buy',
+                goodId: bestGoodId,
+                destinationPort: bestDestination
+            };
+        }
+        
+        // Otherwise travel to sell destination
+        if (bestDestination) {
+            return {
+                action: 'travel',
+                destinationPort: bestDestination
+            };
+        }
+    }
+    
+    // Default: travel to a random nearby port
+    const nearbyPorts = Object.keys(ports).filter(p => {
+        return p !== currentPortId && portDistances[currentPortId][p] <= 10;
+    });
+    
+    if (nearbyPorts.length > 0) {
+        return {
+            action: 'travel',
+            destinationPort: nearbyPorts[Math.floor(Math.random() * nearbyPorts.length)]
+        };
+    }
+    
+    return null;
+}
+
+// Generate autopilot report
+function generateAutopilotReport() {
+    const endGold = gameState.gold;
+    const profit = endGold - gameState.autopilotReport.startGold;
+    const endTime = gameState.gameTime;
+    const daysElapsed = endTime - gameState.autopilotReport.startTime;
+    
+    gameState.autopilotReport.totalProfit = profit;
+    
+    return {
+        duration: gameState.autopilotDurationMinutes,
+        startGold: gameState.autopilotReport.startGold,
+        endGold: endGold,
+        profit: profit,
+        daysElapsed: daysElapsed,
+        trades: gameState.autopilotReport.trades,
+        voyages: gameState.autopilotReport.voyages
+    };
+}
+
+// Show autopilot report modal
+function showAutopilotReport(report) {
+    const modal = document.createElement('div');
+    modal.className = 'voyage-modal';
+    modal.style.zIndex = '1000';
+    
+    let tradesHtml = '<div class="autopilot-trades">';
+    if (report.trades.length > 0) {
+        tradesHtml += '<h4>取引記録:</h4><ul>';
+        report.trades.forEach(trade => {
+            const emoji = trade.action === 'buy' ? '📥' : '📤';
+            const actionText = trade.action === 'buy' ? '購入' : '売却';
+            tradesHtml += `<li>${emoji} ${ports[trade.port].name}: ${trade.good} ${trade.quantity}個 ${actionText} (${trade.total}G)</li>`;
+        });
+        tradesHtml += '</ul>';
+    } else {
+        tradesHtml += '<p>取引なし</p>';
+    }
+    tradesHtml += '</div>';
+    
+    let voyagesHtml = '<div class="autopilot-voyages">';
+    if (report.voyages.length > 0) {
+        voyagesHtml += '<h4>航海記録:</h4><ul>';
+        report.voyages.forEach(voyage => {
+            voyagesHtml += `<li>⛵ ${voyage.from} → ${voyage.to} (${voyage.days}日)</li>`;
+        });
+        voyagesHtml += '</ul>';
+    } else {
+        voyagesHtml += '<p>航海なし</p>';
+    }
+    voyagesHtml += '</div>';
+    
+    const profitColor = report.profit >= 0 ? '#4CAF50' : '#f44336';
+    const profitSign = report.profit >= 0 ? '+' : '';
+    
+    modal.innerHTML = `
+        <div class="voyage-content">
+            <h2>🤖 オートパイロット作業報告書</h2>
+            <div class="autopilot-summary">
+                <div class="voyage-stat">
+                    <span class="stat-label">⏱️ 実行時間:</span>
+                    <span class="stat-value">${report.duration}分</span>
+                </div>
+                <div class="voyage-stat">
+                    <span class="stat-label">📅 経過日数:</span>
+                    <span class="stat-value">${report.daysElapsed}日</span>
+                </div>
+                <div class="voyage-stat">
+                    <span class="stat-label">💰 開始資金:</span>
+                    <span class="stat-value">${report.startGold}G</span>
+                </div>
+                <div class="voyage-stat">
+                    <span class="stat-label">💰 終了資金:</span>
+                    <span class="stat-value">${report.endGold}G</span>
+                </div>
+                <div class="voyage-stat">
+                    <span class="stat-label">📊 純利益:</span>
+                    <span class="stat-value" style="color: ${profitColor}; font-weight: bold;">${profitSign}${report.profit}G</span>
+                </div>
+            </div>
+            ${tradesHtml}
+            ${voyagesHtml}
+            <button class="btn btn-primary" onclick="closeAutopilotReport()" style="margin-top: 20px; width: 100%;">
+                閉じる
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    addLog(`📊 オートパイロット完了！利益: ${profitSign}${report.profit}G`);
+}
+
+// Close autopilot report
+function closeAutopilotReport() {
+    const modal = document.querySelector('.voyage-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Update autopilot UI
+function updateAutopilotUI() {
+    const toggleBtn = document.getElementById('autopilot-toggle');
+    const timerSpan = document.getElementById('autopilot-timer');
+    const durationInput = document.getElementById('autopilot-duration');
+    
+    if (!toggleBtn || !timerSpan || !durationInput) return;
+    
+    if (gameState.autopilotActive) {
+        toggleBtn.textContent = '⏹️ 停止';
+        toggleBtn.className = 'btn btn-sell';
+        durationInput.disabled = true;
+        
+        const elapsed = Date.now() - gameState.autopilotStartTime;
+        const elapsedMinutes = Math.floor(elapsed / 60000);
+        const remaining = gameState.autopilotDurationMinutes - elapsedMinutes;
+        
+        if (remaining > 0) {
+            timerSpan.textContent = `⏱️ 残り: ${remaining}分`;
+        } else {
+            timerSpan.textContent = '⏱️ まもなく完了...';
+        }
+    } else {
+        toggleBtn.textContent = '🤖 開始';
+        toggleBtn.className = 'btn btn-primary';
+        durationInput.disabled = false;
+        timerSpan.textContent = '';
+    }
+}
+
+// Toggle autopilot
+function toggleAutopilot() {
+    if (gameState.autopilotActive) {
+        stopAutopilot();
+    } else {
+        const durationInput = document.getElementById('autopilot-duration');
+        const duration = parseInt(durationInput.value) || 60;
+        startAutopilot(duration);
+    }
+}
+
 // Initialize Game
 function initGame() {
     const loaded = loadGame();
@@ -1848,6 +2283,22 @@ function initGame() {
         // Check for ongoing voyage (in case loadGame didn't call it)
         if (gameState.isVoyaging && gameState.voyageStartTime) {
             checkAndUpdateVoyageProgress();
+        }
+        
+        // Check for active autopilot
+        if (gameState.autopilotActive && gameState.autopilotStartTime) {
+            // Check if autopilot should still be running
+            const elapsed = Date.now() - gameState.autopilotStartTime;
+            const elapsedMinutes = elapsed / 60000;
+            
+            if (elapsedMinutes >= gameState.autopilotDurationMinutes) {
+                // Autopilot time expired, show report
+                stopAutopilot();
+            } else {
+                // Resume autopilot
+                addLog('🤖 オートパイロット再開...');
+                runAutopilotCycle();
+            }
         }
     }
 
@@ -1869,6 +2320,10 @@ if (typeof window !== 'undefined') {
     window.selectDestination = selectDestination;
     window.startSelectedVoyage = startSelectedVoyage;
     window.cancelDestination = cancelDestination;
+    window.startAutopilot = startAutopilot;
+    window.stopAutopilot = stopAutopilot;
+    window.closeAutopilotReport = closeAutopilotReport;
+    window.toggleAutopilot = toggleAutopilot;
 }
 
 // Export for testing (Node.js environment)
