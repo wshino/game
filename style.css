@@ -598,3 +598,60 @@ header h1 {
     from { background: rgba(255, 215, 0, 0.4); }
     to { background: rgba(255, 215, 0, 0.15); }
 }
+
+/* Autopilot Panel Styles */
+.autopilot-panel {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 2px solid #9f7aea;
+}
+
+.autopilot-controls {
+    padding: 10px 0;
+}
+
+.autopilot-controls p {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+#autopilot-status {
+    font-weight: bold;
+    color: #ffd700;
+    text-align: center;
+    min-height: 24px;
+}
+
+.autopilot-summary {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+}
+
+.autopilot-trades, .autopilot-voyages {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.autopilot-trades h4, .autopilot-voyages h4 {
+    color: #ffd700;
+    margin-bottom: 10px;
+}
+
+.autopilot-trades ul, .autopilot-voyages ul {
+    list-style: none;
+    padding: 0;
+}
+
+.autopilot-trades li, .autopilot-voyages li {
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.9em;
+}
+
+.autopilot-trades li:last-child, .autopilot-voyages li:last-child {
+    border-bottom: none;
+}
