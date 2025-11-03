@@ -1556,6 +1556,8 @@ if (typeof module !== 'undefined' && module.exports) {
         initializePortInventory,
         getCargoSpace,
         getCargoUsed,
-        getPrice
+        getPrice,
+        saveGame,
+        loadGame
     };
 }
