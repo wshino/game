@@ -272,7 +272,27 @@ function loadGame() {
             gameState.gold = loadedState.gold;
             gameState.currentPort = loadedState.currentPort;
             gameState.inventory = loadedState.inventory || {};
-            gameState.ship = loadedState.ship;
+
+            // Load ship - update to latest ship definition while preserving game state (crew)
+            if (loadedState.ship && loadedState.ship.name) {
+                // Find the latest ship definition by name
+                const latestShipDef = ships.find(s => s.name === loadedState.ship.name);
+                if (latestShipDef) {
+                    // Use latest definition but preserve crew from save
+                    gameState.ship = {
+                        ...latestShipDef,
+                        crew: loadedState.ship.crew || latestShipDef.crew
+                    };
+                    console.log(`船の定義を更新: ${latestShipDef.name} (積載量: ${latestShipDef.capacity})`);
+                } else {
+                    // Ship not found in definitions, use saved data as fallback
+                    gameState.ship = loadedState.ship;
+                    console.warn(`船の定義が見つかりません: ${loadedState.ship.name}`);
+                }
+            } else {
+                gameState.ship = loadedState.ship;
+            }
+
             // Ensure crew exists (for backward compatibility)
             if (!gameState.ship.crew) {
                 gameState.ship.crew = 20;
