@@ -1280,11 +1280,11 @@ function showVoyageModal(fromPort, toPort, destinationPortId, estimatedDays) {
                 <svg id="voyage-map" class="voyage-map" viewBox="0 0 1000 600">
                     <!-- Ocean background -->
                     <rect width="1000" height="600" fill="#1e3a5f"/>
-                    <!-- High resolution world map bitmap image -->
-                    <!-- Using Wikimedia Commons Equirectangular world map -->
+                    <!-- High resolution realistic world map image -->
+                    <!-- Using Natural Earth II with Shaded Relief from Wikimedia Commons -->
                     <image id="world-map-image" x="0" y="0" width="1000" height="600"
-                           href="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Equirectangular_projection_topographic_map.jpg/2560px-Equirectangular_projection_topographic_map.jpg"
-                           preserveAspectRatio="xMidYMid slice"
+                           href="https://upload.wikimedia.org/wikipedia/commons/9/97/Natural_Earth_II_flat_world_map_with_shaded_relief.jpg"
+                           preserveAspectRatio="none"
                            crossorigin="anonymous"
                            onload="console.log('World map loaded successfully')"
                            onerror="console.warn('Failed to load world map image, using fallback');this.style.display='none';document.getElementById('landmasses').style.display='block'"/>
@@ -1400,11 +1400,11 @@ function showVoyageModalInProgress(fromPort, toPort, currentDaysElapsed, totalDa
                 <svg id="voyage-map" class="voyage-map" viewBox="0 0 1000 600">
                     <!-- Ocean background -->
                     <rect width="1000" height="600" fill="#1e3a5f"/>
-                    <!-- High resolution world map bitmap image -->
-                    <!-- Using Wikimedia Commons Equirectangular world map -->
+                    <!-- High resolution realistic world map image -->
+                    <!-- Using Natural Earth II with Shaded Relief from Wikimedia Commons -->
                     <image id="world-map-image" x="0" y="0" width="1000" height="600"
-                           href="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Equirectangular_projection_topographic_map.jpg/2560px-Equirectangular_projection_topographic_map.jpg"
-                           preserveAspectRatio="xMidYMid slice"
+                           href="https://upload.wikimedia.org/wikipedia/commons/9/97/Natural_Earth_II_flat_world_map_with_shaded_relief.jpg"
+                           preserveAspectRatio="none"
                            crossorigin="anonymous"
                            onload="console.log('World map loaded successfully')"
                            onerror="console.warn('Failed to load world map image, using fallback');this.style.display='none';document.getElementById('landmasses').style.display='block'"/>
