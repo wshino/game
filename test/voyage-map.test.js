@@ -137,18 +137,24 @@ test('initializeVoyageMap が航路線を正しく設定する', () => {
 
     const routeLine = global.document.getElementById('voyage-route-line');
 
-    // 航路線の座標が設定されていることを確認
-    assert.ok(routeLine.getAttribute('x1'), '航路線の開始x座標が設定されている');
-    assert.ok(routeLine.getAttribute('y1'), '航路線の開始y座標が設定されている');
-    assert.ok(routeLine.getAttribute('x2'), '航路線の終了x座標が設定されている');
-    assert.ok(routeLine.getAttribute('y2'), '航路線の終了y座標が設定されている');
+    // ポリラインのpoints属性が設定されていることを確認
+    const points = routeLine.getAttribute('points');
+    assert.ok(points, '航路線のpoints属性が設定されている');
 
-    // 座標がポートの座標と一致することを確認
+    // pointsが正しい形式であることを確認 (カンマとスペース区切りの座標)
+    const pointsList = points.split(' ');
+    assert.ok(pointsList.length >= 2, '航路線に少なくとも2つのポイントがある');
+
+    // 最初のポイントがリスボンの座標と一致することを確認
+    const firstPoint = pointsList[0].split(',').map(Number);
     const ports = game.ports;
-    assert.strictEqual(Number(routeLine.getAttribute('x1')), ports.lisbon.x, '開始x座標がリスボンの座標と一致');
-    assert.strictEqual(Number(routeLine.getAttribute('y1')), ports.lisbon.y, '開始y座標がリスボンの座標と一致');
-    assert.strictEqual(Number(routeLine.getAttribute('x2')), ports.nagasaki.x, '終了x座標が長崎の座標と一致');
-    assert.strictEqual(Number(routeLine.getAttribute('y2')), ports.nagasaki.y, '終了y座標が長崎の座標と一致');
+    assert.strictEqual(firstPoint[0], ports.lisbon.x, '開始x座標がリスボンの座標と一致');
+    assert.strictEqual(firstPoint[1], ports.lisbon.y, '開始y座標がリスボンの座標と一致');
+
+    // 最後のポイントが長崎の座標と一致することを確認
+    const lastPoint = pointsList[pointsList.length - 1].split(',').map(Number);
+    assert.strictEqual(lastPoint[0], ports.nagasaki.x, '終了x座標が長崎の座標と一致');
+    assert.strictEqual(lastPoint[1], ports.nagasaki.y, '終了y座標が長崎の座標と一致');
 });
 
 test('initializeVoyageMap が船を出発地点に配置する', () => {
@@ -186,10 +192,11 @@ test('updateShipPosition が進捗に応じて船を移動させる', () => {
     game.initializeVoyageMap('lisbon', 'venice');
 
     const ports = game.ports;
-    const startX = ports.lisbon.x;
-    const startY = ports.lisbon.y;
-    const endX = ports.venice.x;
-    const endY = ports.venice.y;
+    const route = game.getSeaRoute('lisbon', 'venice');
+    const startX = route[0][0];
+    const startY = route[0][1];
+    const endX = route[route.length - 1][0];
+    const endY = route[route.length - 1][1];
 
     // 進捗0%: 出発地点
     game.updateShipPosition(0);
@@ -197,13 +204,18 @@ test('updateShipPosition が進捗に応じて船を移動させる', () => {
     assert.strictEqual(Number(shipIcon.getAttribute('x')), startX, '進捗0%で船は出発地点にいる (x)');
     assert.strictEqual(Number(shipIcon.getAttribute('y')), startY, '進捗0%で船は出発地点にいる (y)');
 
-    // 進捗50%: 中間地点
+    // 進捗50%: ルート上のどこかにいる（正確な座標はウェイポイントに依存）
     game.updateShipPosition(0.5);
     shipIcon = global.document.getElementById('voyage-ship-icon');
-    const midX = startX + (endX - startX) * 0.5;
-    const midY = startY + (endY - startY) * 0.5;
-    assert.strictEqual(Number(shipIcon.getAttribute('x')), midX, '進捗50%で船は中間地点にいる (x)');
-    assert.strictEqual(Number(shipIcon.getAttribute('y')), midY, '進捗50%で船は中間地点にいる (y)');
+    const midX = Number(shipIcon.getAttribute('x'));
+    const midY = Number(shipIcon.getAttribute('y'));
+    // 中間地点はルートの範囲内にある（ウェイポイントを考慮）
+    const routeMinX = Math.min(...route.map(p => p[0]));
+    const routeMaxX = Math.max(...route.map(p => p[0]));
+    const routeMinY = Math.min(...route.map(p => p[1]));
+    const routeMaxY = Math.max(...route.map(p => p[1]));
+    assert.ok(midX >= routeMinX && midX <= routeMaxX, '進捗50%で船はルート上にいる (x)');
+    assert.ok(midY >= routeMinY && midY <= routeMaxY, '進捗50%で船はルート上にいる (y)');
 
     // 進捗100%: 目的地
     game.updateShipPosition(1.0);
