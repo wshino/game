@@ -2022,9 +2022,9 @@ function executeAutopilotDecision() {
             const maxByMoney = Math.floor(availableMoneyForGoods * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO / buyPrice);
             const maxByCargo = Math.floor(cargoSpace * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO);
             const maxByStock = portStock;
-            const maxCanBuy = Math.max(1, Math.min(maxByMoney, maxByCargo, maxByStock));
+            const maxCanBuy = Math.min(maxByMoney, maxByCargo, maxByStock);
             
-            if (maxCanBuy > 0 && availableMoneyForGoods >= buyPrice * AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
+            if (maxCanBuy > 0 && maxCanBuy >= AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
                 const totalCost = maxCanBuy * buyPrice;
                 gameState.gold -= totalCost;
                 gameState.inventory[goodId] = (gameState.inventory[goodId] || 0) + maxCanBuy;
@@ -2172,7 +2172,7 @@ function findBestTrade() {
                 const maxByCargo = Math.floor(cargoSpace * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO);
                 const estimatedQuantity = Math.min(maxByMoney, maxByCargo, portStock, 50);
                 
-                if (estimatedQuantity > 0 && availableMoneyForGoods > buyPrice * AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
+                if (estimatedQuantity >= AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
                     // Net profit = revenue - cost - travel
                     const revenue = sellPrice * estimatedQuantity;
                     const cost = buyPrice * estimatedQuantity;
@@ -2192,10 +2192,10 @@ function findBestTrade() {
     // Only execute trade if it's profitable
     if (bestGoodId && bestNetProfit > 0) {
         const cargoSpace = getCargoSpace();
-        const buyPrice = getPrice(bestGoodId, true);
         
-        // Make sure we have enough resources to execute the trade
-        if (cargoSpace > AUTOPILOT_CONFIG.MINIMUM_CARGO_SPACE && gameState.gold > buyPrice * AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
+        // The calculation above already verified profitability with proper money reservation
+        // Just check if we have minimum cargo space
+        if (cargoSpace > AUTOPILOT_CONFIG.MINIMUM_CARGO_SPACE) {
             return {
                 action: 'buy',
                 goodId: bestGoodId,
