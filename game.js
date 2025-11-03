@@ -2055,21 +2055,72 @@ function findBestTrade() {
     const currentPortId = gameState.currentPort;
     
     // Check if we have goods to sell at current port
-    let hasGoods = false;
+    let bestSellValue = 0;
+    let hasProfitableGoods = false;
+    
     for (const goodId in gameState.inventory) {
-        if (goodId !== 'food' && goodId !== 'water' && gameState.inventory[goodId] > 0) {
-            hasGoods = true;
-            break;
+        if (goodId === 'food' || goodId === 'water') continue;
+        const quantity = gameState.inventory[goodId];
+        if (quantity > 0) {
+            const sellPrice = getPrice(goodId, false);
+            const sellValue = sellPrice * quantity;
+            bestSellValue += sellValue;
+            hasProfitableGoods = true;
         }
     }
     
-    if (hasGoods) {
-        // Sell goods if we're at a good selling port
-        return { action: 'sell' };
+    // If we have goods, check if we should sell them here or travel to a better port
+    if (hasProfitableGoods) {
+        // Check if there's a significantly better port to sell at
+        let bestSellPort = currentPortId;
+        let bestSellPotential = bestSellValue;
+        
+        for (const destPortId in ports) {
+            if (destPortId === currentPortId) continue;
+            
+            // Calculate potential sell value at destination
+            const originalPort = gameState.currentPort;
+            gameState.currentPort = destPortId;
+            let destSellValue = 0;
+            for (const goodId in gameState.inventory) {
+                if (goodId === 'food' || goodId === 'water') continue;
+                const quantity = gameState.inventory[goodId];
+                if (quantity > 0) {
+                    const sellPrice = getPrice(goodId, false);
+                    destSellValue += sellPrice * quantity;
+                }
+            }
+            gameState.currentPort = originalPort;
+            
+            // Calculate travel cost
+            const distance = portDistances[currentPortId][destPortId];
+            const estimatedDays = Math.max(1, Math.round(distance / gameState.ship.speed));
+            const supplyCost = calculateSupplyCost(estimatedDays);
+            
+            // Net benefit of traveling to sell there
+            const netBenefit = destSellValue - bestSellValue - supplyCost;
+            
+            // Only travel if net benefit is significant (at least 10% more profit)
+            if (netBenefit > bestSellValue * 0.1 && destSellValue > bestSellPotential) {
+                bestSellPotential = destSellValue;
+                bestSellPort = destPortId;
+            }
+        }
+        
+        // If current port is best, sell here
+        if (bestSellPort === currentPortId) {
+            return { action: 'sell' };
+        } else {
+            // Travel to better selling port
+            return {
+                action: 'travel',
+                destinationPort: bestSellPort
+            };
+        }
     }
     
     // Find best buy-and-sell opportunity
-    let bestProfit = 0;
+    let bestNetProfit = 0;
     let bestGoodId = null;
     let bestDestination = null;
     
@@ -2090,52 +2141,59 @@ function findBestTrade() {
                 const sellPrice = getPrice(goodId, false);
                 gameState.currentPort = originalPort;
                 
-                const profit = sellPrice - buyPrice;
+                // Calculate travel cost
                 const distance = portDistances[currentPortId][destPortId];
-                const profitPerDay = profit / distance;
+                const estimatedDays = Math.max(1, Math.round(distance / gameState.ship.speed));
+                const supplyCost = calculateSupplyCost(estimatedDays);
                 
-                if (profitPerDay > bestProfit) {
-                    bestProfit = profitPerDay;
-                    bestGoodId = goodId;
-                    bestDestination = destPortId;
+                // Calculate potential quantity to buy (conservative estimate)
+                const cargoSpace = getCargoSpace();
+                const maxByMoney = Math.floor(gameState.gold * 0.7 / buyPrice);
+                const maxByCargo = Math.floor(cargoSpace * 0.7);
+                const estimatedQuantity = Math.min(maxByMoney, maxByCargo, portStock, 50);
+                
+                if (estimatedQuantity > 0) {
+                    // Net profit = revenue - cost - travel
+                    const revenue = sellPrice * estimatedQuantity;
+                    const cost = buyPrice * estimatedQuantity;
+                    const netProfit = revenue - cost - supplyCost;
+                    
+                    // Only consider if net profit is positive and significant
+                    if (netProfit > bestNetProfit && netProfit > 100) {
+                        bestNetProfit = netProfit;
+                        bestGoodId = goodId;
+                        bestDestination = destPortId;
+                    }
                 }
             }
         }
     }
     
-    if (bestGoodId && bestProfit > 0) {
-        // If we have cargo space and money, buy goods
+    // Only execute trade if it's profitable
+    if (bestGoodId && bestNetProfit > 0) {
         const cargoSpace = getCargoSpace();
-        if (cargoSpace > 10 && gameState.gold > getPrice(bestGoodId, true) * 5) {
+        const buyPrice = getPrice(bestGoodId, true);
+        
+        // Make sure we have enough resources to execute the trade
+        if (cargoSpace > 10 && gameState.gold > buyPrice * 5) {
             return {
                 action: 'buy',
                 goodId: bestGoodId,
                 destinationPort: bestDestination
             };
         }
-        
-        // Otherwise travel to sell destination
-        if (bestDestination) {
-            return {
-                action: 'travel',
-                destinationPort: bestDestination
-            };
-        }
     }
     
-    // Default: travel to a random nearby port
-    const nearbyPorts = Object.keys(ports).filter(p => {
-        return p !== currentPortId && portDistances[currentPortId][p] <= 10;
-    });
-    
-    if (nearbyPorts.length > 0) {
-        return {
-            action: 'travel',
-            destinationPort: nearbyPorts[Math.floor(Math.random() * nearbyPorts.length)]
-        };
-    }
-    
+    // No profitable trade found - don't do anything (don't waste money on random travel)
     return null;
+}
+
+// Helper function to calculate supply cost for a voyage
+function calculateSupplyCost(days) {
+    const required = calculateRequiredSupplies(days);
+    const foodPrice = goods.food.basePrice * portPrices[gameState.currentPort].food;
+    const waterPrice = goods.water.basePrice * portPrices[gameState.currentPort].water;
+    return Math.ceil(required.food * foodPrice + required.water * waterPrice);
 }
 
 // Generate autopilot report
@@ -2368,6 +2426,8 @@ if (typeof module !== 'undefined' && module.exports) {
         loadGame,
         getSeaRoute,
         initializeVoyageMap,
-        updateShipPosition
+        updateShipPosition,
+        findBestTrade,
+        calculateSupplyCost
     };
 }
