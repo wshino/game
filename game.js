@@ -40,7 +40,8 @@ const AUTOPILOT_CONFIG = {
     MINIMUM_PROFIT_THRESHOLD: 100, // Minimum expected profit to execute trade
     PROFIT_IMPROVEMENT_RATIO: 0.1, // Require 10% better profit to travel for selling
     MINIMUM_PURCHASE_MULTIPLIER: 5,// Must afford at least 5 units to buy
-    MINIMUM_CARGO_SPACE: 10        // Minimum cargo space needed to buy
+    MINIMUM_CARGO_SPACE: 10,       // Minimum cargo space needed to buy
+    MAX_ESTIMATED_QUANTITY: 50     // Maximum quantity to estimate for profitability calculation
 };
 
 // Port Definitions (based on historical 15-16th century city sizes)
@@ -2024,7 +2025,7 @@ function executeAutopilotDecision() {
             const maxByStock = portStock;
             const maxCanBuy = Math.min(maxByMoney, maxByCargo, maxByStock);
             
-            if (maxCanBuy > 0 && maxCanBuy >= AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
+            if (maxCanBuy >= AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
                 const totalCost = maxCanBuy * buyPrice;
                 gameState.gold -= totalCost;
                 gameState.inventory[goodId] = (gameState.inventory[goodId] || 0) + maxCanBuy;
@@ -2170,7 +2171,7 @@ function findBestTrade() {
                 const availableMoneyForGoods = Math.max(0, gameState.gold - supplyCost - AUTOPILOT_CONFIG.SAFETY_RESERVE);
                 const maxByMoney = Math.floor(availableMoneyForGoods * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO / buyPrice);
                 const maxByCargo = Math.floor(cargoSpace * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO);
-                const estimatedQuantity = Math.min(maxByMoney, maxByCargo, portStock, 50);
+                const estimatedQuantity = Math.min(maxByMoney, maxByCargo, portStock, AUTOPILOT_CONFIG.MAX_ESTIMATED_QUANTITY);
                 
                 if (estimatedQuantity >= AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
                     // Net profit = revenue - cost - travel
