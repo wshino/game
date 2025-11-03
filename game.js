@@ -276,7 +276,7 @@ function loadGame() {
             // Load ship - update to latest ship definition while preserving game state (crew)
             if (loadedState.ship && loadedState.ship.name) {
                 // Find the latest ship definition by name
-                const latestShipDef = ships.find(s => s.name === loadedState.ship.name);
+                const latestShipDef = shipUpgrades.find(s => s.name === loadedState.ship.name);
                 if (latestShipDef) {
                     // Use latest definition but preserve crew from save
                     gameState.ship = {
