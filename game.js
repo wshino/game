@@ -33,6 +33,16 @@ const gameState = {
     }
 };
 
+// Autopilot configuration constants
+const AUTOPILOT_CONFIG = {
+    SAFETY_RESERVE: 100,           // Reserve gold for emergencies
+    CARGO_UTILIZATION_RATIO: 0.7,  // Use 70% of available cargo/money for trading
+    MINIMUM_PROFIT_THRESHOLD: 100, // Minimum expected profit to execute trade
+    PROFIT_IMPROVEMENT_RATIO: 0.1, // Require 10% better profit to travel for selling
+    MINIMUM_PURCHASE_MULTIPLIER: 5,// Must afford at least 5 units to buy
+    MINIMUM_CARGO_SPACE: 10        // Minimum cargo space needed to buy
+};
+
 // Port Definitions (based on historical 15-16th century city sizes)
 const ports = {
     lisbon: {
@@ -2008,13 +2018,13 @@ function executeAutopilotDecision() {
             const supplyCost = calculateSupplyCost(estimatedDays);
             
             // Reserve money for supplies - calculate how many to buy
-            const availableMoneyForGoods = Math.max(0, gameState.gold - supplyCost - 100);
-            const maxByMoney = Math.floor(availableMoneyForGoods * 0.7 / buyPrice);
-            const maxByCargo = Math.floor(cargoSpace * 0.7);
+            const availableMoneyForGoods = Math.max(0, gameState.gold - supplyCost - AUTOPILOT_CONFIG.SAFETY_RESERVE);
+            const maxByMoney = Math.floor(availableMoneyForGoods * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO / buyPrice);
+            const maxByCargo = Math.floor(cargoSpace * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO);
             const maxByStock = portStock;
             const maxCanBuy = Math.max(1, Math.min(maxByMoney, maxByCargo, maxByStock));
             
-            if (maxCanBuy > 0 && availableMoneyForGoods >= buyPrice * 5) {
+            if (maxCanBuy > 0 && availableMoneyForGoods >= buyPrice * AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
                 const totalCost = maxCanBuy * buyPrice;
                 gameState.gold -= totalCost;
                 gameState.inventory[goodId] = (gameState.inventory[goodId] || 0) + maxCanBuy;
@@ -2108,8 +2118,8 @@ function findBestTrade() {
             // Net benefit of traveling to sell there
             const netBenefit = destSellValue - bestSellValue - supplyCost;
             
-            // Only travel if we have enough money for supplies AND net benefit is significant (at least 10% more profit)
-            if (gameState.gold >= supplyCost && netBenefit > bestSellValue * 0.1 && destSellValue > bestSellPotential) {
+            // Only travel if we have enough money for supplies AND net benefit is significant
+            if (gameState.gold >= supplyCost && netBenefit > bestSellValue * AUTOPILOT_CONFIG.PROFIT_IMPROVEMENT_RATIO && destSellValue > bestSellPotential) {
                 bestSellPotential = destSellValue;
                 bestSellPort = destPortId;
                 bestSupplyCost = supplyCost;
@@ -2157,19 +2167,19 @@ function findBestTrade() {
                 
                 // Calculate potential quantity to buy - must reserve money for supplies!
                 const cargoSpace = getCargoSpace();
-                const availableMoneyForGoods = Math.max(0, gameState.gold - supplyCost - 100); // Reserve supply cost + 100G safety
-                const maxByMoney = Math.floor(availableMoneyForGoods * 0.7 / buyPrice);
-                const maxByCargo = Math.floor(cargoSpace * 0.7);
+                const availableMoneyForGoods = Math.max(0, gameState.gold - supplyCost - AUTOPILOT_CONFIG.SAFETY_RESERVE);
+                const maxByMoney = Math.floor(availableMoneyForGoods * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO / buyPrice);
+                const maxByCargo = Math.floor(cargoSpace * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO);
                 const estimatedQuantity = Math.min(maxByMoney, maxByCargo, portStock, 50);
                 
-                if (estimatedQuantity > 0 && availableMoneyForGoods > buyPrice * 5) {
+                if (estimatedQuantity > 0 && availableMoneyForGoods > buyPrice * AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
                     // Net profit = revenue - cost - travel
                     const revenue = sellPrice * estimatedQuantity;
                     const cost = buyPrice * estimatedQuantity;
                     const netProfit = revenue - cost - supplyCost;
                     
                     // Only consider if net profit is positive and significant
-                    if (netProfit > bestNetProfit && netProfit > 100) {
+                    if (netProfit > bestNetProfit && netProfit > AUTOPILOT_CONFIG.MINIMUM_PROFIT_THRESHOLD) {
                         bestNetProfit = netProfit;
                         bestGoodId = goodId;
                         bestDestination = destPortId;
@@ -2185,7 +2195,7 @@ function findBestTrade() {
         const buyPrice = getPrice(bestGoodId, true);
         
         // Make sure we have enough resources to execute the trade
-        if (cargoSpace > 10 && gameState.gold > buyPrice * 5) {
+        if (cargoSpace > AUTOPILOT_CONFIG.MINIMUM_CARGO_SPACE && gameState.gold > buyPrice * AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
             return {
                 action: 'buy',
                 goodId: bestGoodId,
