@@ -1,6 +1,6 @@
 // Game State
 const gameState = {
-    gold: 1000,
+    gold: 1100,
     currentPort: 'lisbon',
     inventory: {},
     ship: {
@@ -236,9 +236,9 @@ const weatherTypes = {
 
 // Port-specific price modifiers (multipliers)
 const portPrices = {
-    lisbon: { wine: 0.8, cloth: 1.0, spices: 2.0, silk: 1.8, gold_ore: 1.5, porcelain: 1.5, tea: 1.6, silver: 1.4, food: 1.0, water: 1.0 },
-    seville: { wine: 0.9, cloth: 0.9, spices: 1.8, silk: 1.7, gold_ore: 0.7, porcelain: 1.6, tea: 1.5, silver: 1.3, food: 0.9, water: 0.9 },
-    venice: { wine: 1.1, cloth: 0.7, spices: 1.5, silk: 1.3, gold_ore: 1.6, porcelain: 1.4, tea: 1.4, silver: 1.5, food: 1.1, water: 1.0 },
+    lisbon: { wine: 0.8, cloth: 1.0, spices: 2.1, silk: 1.9, gold_ore: 1.5, porcelain: 1.5, tea: 1.6, silver: 1.4, food: 1.0, water: 1.0 },
+    seville: { wine: 0.9, cloth: 0.9, spices: 1.9, silk: 1.8, gold_ore: 0.7, porcelain: 1.6, tea: 1.5, silver: 1.3, food: 0.9, water: 0.9 },
+    venice: { wine: 1.1, cloth: 0.7, spices: 1.6, silk: 1.4, gold_ore: 1.6, porcelain: 1.4, tea: 1.4, silver: 1.5, food: 1.1, water: 1.0 },
     alexandria: { wine: 1.2, cloth: 1.1, spices: 0.9, silk: 1.2, gold_ore: 1.4, porcelain: 1.3, tea: 1.2, silver: 1.4, food: 1.2, water: 1.3 },
     calicut: { wine: 1.5, cloth: 1.3, spices: 0.6, silk: 1.0, gold_ore: 1.3, porcelain: 1.2, tea: 0.9, silver: 1.2, food: 1.0, water: 1.1 },
     malacca: { wine: 1.6, cloth: 1.4, spices: 0.8, silk: 0.9, gold_ore: 1.2, porcelain: 1.0, tea: 0.8, silver: 1.1, food: 1.1, water: 1.2 },
@@ -1106,8 +1106,8 @@ function getRandomWeather() {
 function calculateRequiredSupplies(days) {
     const crew = gameState.ship.crew;
     return {
-        food: Math.ceil(crew * days * 0.08), // 0.08 units per crew per day (reduced for better game balance)
-        water: Math.ceil(crew * days * 0.08)
+        food: Math.ceil(crew * days * 0.07), // 0.07 units per crew per day (balanced for better early game progression)
+        water: Math.ceil(crew * days * 0.07)
     };
 }
 
@@ -1781,10 +1781,10 @@ function selectDestination(portId) {
         }
 
         // Warning for high supply percentage
-        if (supplyPercentage > 80) {
+        if (supplyPercentage > 75) {
             addLog(`⚠️ この航海は物資が積載量の${Math.round(supplyPercentage)}%を占めます`);
-            addLog(`💡 より大きな船か、中継港の利用をお勧めします`);
-        } else if (supplyPercentage > 60) {
+            addLog(`💡 より大きな船へのアップグレード、または中継港経由をお勧めします`);
+        } else if (supplyPercentage > 55) {
             addLog(`📊 この航海の物資負担: ${Math.round(supplyPercentage)}%`);
         }
 
@@ -1793,10 +1793,10 @@ function selectDestination(portId) {
         addLog(`⚓ ${ports[portId].name}を航海先に選択しました`);
 
         // Warning for high supply percentage
-        if (supplyPercentage > 80) {
+        if (supplyPercentage > 75) {
             addLog(`⚠️ この航海は物資が積載量の${Math.round(supplyPercentage)}%を占めます`);
-            addLog(`💡 より大きな船か、中継港の利用をお勧めします`);
-        } else if (supplyPercentage > 60) {
+            addLog(`💡 より大きな船へのアップグレード、または中継港経由をお勧めします`);
+        } else if (supplyPercentage > 55) {
             addLog(`📊 この航海の物資負担: ${Math.round(supplyPercentage)}%`);
         }
 
