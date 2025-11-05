@@ -2118,9 +2118,15 @@ function findBestTrade() {
             
             // Net benefit of traveling to sell there
             const netBenefit = destSellValue - bestSellValue - supplyCost;
-            
-            // Only travel if we have enough money for supplies AND net benefit is significant
-            if (gameState.gold >= supplyCost && netBenefit > bestSellValue * AUTOPILOT_CONFIG.PROFIT_IMPROVEMENT_RATIO && destSellValue > bestSellPotential) {
+
+            // Only travel if:
+            // 1. We have enough money for supplies + safety reserve
+            // 2. Net benefit exceeds supply cost (travel must be profitable)
+            // 3. Net benefit is significant (at least 10% improvement)
+            if (gameState.gold >= supplyCost + AUTOPILOT_CONFIG.SAFETY_RESERVE &&
+                netBenefit > supplyCost &&
+                netBenefit > bestSellValue * AUTOPILOT_CONFIG.PROFIT_IMPROVEMENT_RATIO &&
+                destSellValue > bestSellPotential) {
                 bestSellPotential = destSellValue;
                 bestSellPort = destPortId;
                 bestSupplyCost = supplyCost;
