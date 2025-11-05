@@ -1920,11 +1920,42 @@ function stopAutopilot() {
     if (!gameState.autopilotActive) {
         return;
     }
-    
+
+    // Before stopping, sell all remaining goods at current port
+    // This prevents ending autopilot with unsold inventory
+    const hasUnsoldGoods = Object.keys(gameState.inventory).some(goodId => {
+        return gameState.inventory[goodId] > 0 && goodId !== 'food' && goodId !== 'water';
+    });
+
+    if (hasUnsoldGoods) {
+        for (const goodId in gameState.inventory) {
+            if (goodId === 'food' || goodId === 'water') continue;
+
+            const quantity = gameState.inventory[goodId];
+            if (quantity > 0) {
+                const sellPrice = getPrice(goodId, false);
+                const totalValue = sellPrice * quantity;
+
+                gameState.gold += totalValue;
+                gameState.autopilotReport.trades.push({
+                    port: gameState.currentPort,
+                    action: 'sell',
+                    good: goods[goodId].name,
+                    quantity: quantity,
+                    price: sellPrice,
+                    total: totalValue
+                });
+                gameState.inventory[goodId] = 0;
+            }
+        }
+        addLog(`🤖 オートパイロット終了前に残りの商品を売却しました`);
+        updateAll();
+    }
+
     gameState.autopilotActive = false;
     const report = generateAutopilotReport();
     showAutopilotReport(report);
-    
+
     saveGame();
     updateAll();
 }
@@ -1972,14 +2003,52 @@ function runAutopilotCycle() {
 
 // Execute autopilot decision (buy/sell/travel)
 function executeAutopilotDecision() {
+    // Check remaining time - if less than 2 minutes, only sell existing goods
+    const elapsed = Date.now() - gameState.autopilotStartTime;
+    const elapsedMinutes = elapsed / 60000;
+    const remainingMinutes = gameState.autopilotDurationMinutes - elapsedMinutes;
+
+    // If we have goods to sell, sell them first
+    const hasGoodsToSell = Object.keys(gameState.inventory).some(goodId => {
+        return gameState.inventory[goodId] > 0 && goodId !== 'food' && goodId !== 'water';
+    });
+
+    // If time is running out (< 2 minutes), only sell existing goods, don't buy or travel
+    if (remainingMinutes < 2 && hasGoodsToSell) {
+        for (const goodId in gameState.inventory) {
+            if (goodId === 'food' || goodId === 'water') continue;
+
+            const quantity = gameState.inventory[goodId];
+            if (quantity > 0) {
+                const sellPrice = getPrice(goodId, false);
+                const totalValue = sellPrice * quantity;
+
+                gameState.gold += totalValue;
+                gameState.autopilotReport.trades.push({
+                    port: gameState.currentPort,
+                    action: 'sell',
+                    good: goods[goodId].name,
+                    quantity: quantity,
+                    price: sellPrice,
+                    total: totalValue
+                });
+                gameState.inventory[goodId] = 0;
+            }
+        }
+        addLog(`🤖 時間切れ間近のため商品を売却しました`);
+        updateAll();
+        return; // Don't proceed with other actions
+    }
+
+    // If time is running out and no goods to sell, don't start new trades
+    if (remainingMinutes < 2) {
+        return;
+    }
+
     // Find the most profitable trade route
     const bestTrade = findBestTrade();
-    
+
     if (bestTrade) {
-        // If we have goods to sell, sell them first
-        const hasGoodsToSell = Object.keys(gameState.inventory).some(goodId => {
-            return gameState.inventory[goodId] > 0 && goodId !== 'food' && goodId !== 'water';
-        });
         
         if (hasGoodsToSell && bestTrade.action === 'sell') {
             // Sell all profitable goods at current port
