@@ -35,13 +35,13 @@ const gameState = {
 
 // Autopilot configuration constants
 const AUTOPILOT_CONFIG = {
-    SAFETY_RESERVE: 100,           // Reserve gold for emergencies
-    CARGO_UTILIZATION_RATIO: 0.7,  // Use 70% of available cargo/money for trading
-    MINIMUM_PROFIT_THRESHOLD: 100, // Minimum expected profit to execute trade
-    PROFIT_IMPROVEMENT_RATIO: 0.1, // Require 10% better profit to travel for selling
+    SAFETY_RESERVE: 50,            // Reserve gold for emergencies (reduced for more aggressive trading)
+    CARGO_UTILIZATION_RATIO: 0.9,  // Use 90% of available cargo/money for trading (increased from 70%)
+    MINIMUM_PROFIT_THRESHOLD: 50,  // Minimum expected profit to execute trade (reduced from 100 to catch more opportunities)
+    PROFIT_IMPROVEMENT_RATIO: 0.05,// Require 5% better profit to travel for selling (reduced from 10% for more aggressive movement)
     MINIMUM_PURCHASE_MULTIPLIER: 5,// Must afford at least 5 units to buy
     MINIMUM_CARGO_SPACE: 10,       // Minimum cargo space needed to buy
-    MAX_ESTIMATED_QUANTITY: 50     // Maximum quantity to estimate for profitability calculation
+    MAX_ESTIMATED_QUANTITY: 100    // Maximum quantity to estimate for profitability calculation (increased from 50)
 };
 
 // Port Definitions (based on historical 15-16th century city sizes)
@@ -1904,17 +1904,20 @@ function upgradeShip(shipIndex) {
 // ====== Autopilot Functions ======
 
 // Start autopilot mode
-function startAutopilot(durationMinutes) {
+function startAutopilot(durationHours) {
     if (gameState.isVoyaging) {
         addLog('❌ 航海中はオートパイロットを開始できません');
         return;
     }
-    
-    if (durationMinutes < 1 || durationMinutes > 180) {
-        addLog('❌ オートパイロット時間は1分〜180分で設定してください');
+
+    if (durationHours < 1 || durationHours > 24) {
+        addLog('❌ オートパイロット時間は1時間〜24時間で設定してください');
         return;
     }
-    
+
+    // Convert hours to minutes for internal use
+    const durationMinutes = durationHours * 60;
+
     gameState.autopilotActive = true;
     gameState.autopilotStartTime = Date.now();
     gameState.autopilotDurationMinutes = durationMinutes;
@@ -1925,13 +1928,13 @@ function startAutopilot(durationMinutes) {
         voyages: [],
         totalProfit: 0
     };
-    
-    addLog(`🤖 オートパイロット開始！(${durationMinutes}分間)`);
+
+    addLog(`🤖 オートパイロット開始！(${durationHours}時間)`);
     addLog('船が自動的に貿易を行います...');
-    
+
     saveGame();
     updateAll();
-    
+
     // Start autopilot loop
     runAutopilotCycle();
 }
@@ -2299,11 +2302,25 @@ function generateAutopilotReport() {
     const profit = endGold - gameState.autopilotReport.startGold;
     const endTime = gameState.gameTime;
     const daysElapsed = endTime - gameState.autopilotReport.startTime;
-    
+
     gameState.autopilotReport.totalProfit = profit;
-    
+
+    // Convert minutes to hours for display
+    const durationHours = Math.floor(gameState.autopilotDurationMinutes / 60);
+    const durationMinutes = gameState.autopilotDurationMinutes % 60;
+    let durationText = '';
+    if (durationHours > 0) {
+        durationText = `${durationHours}時間`;
+        if (durationMinutes > 0) {
+            durationText += `${durationMinutes}分`;
+        }
+    } else {
+        durationText = `${durationMinutes}分`;
+    }
+
     return {
         duration: gameState.autopilotDurationMinutes,
+        durationText: durationText,
         startGold: gameState.autopilotReport.startGold,
         endGold: endGold,
         profit: profit,
@@ -2354,7 +2371,7 @@ function showAutopilotReport(report) {
             <div class="autopilot-summary">
                 <div class="voyage-stat">
                     <span class="stat-label">⏱️ 実行時間:</span>
-                    <span class="stat-value">${report.duration}分</span>
+                    <span class="stat-value">${report.durationText}</span>
                 </div>
                 <div class="voyage-stat">
                     <span class="stat-label">📅 経過日数:</span>
@@ -2406,13 +2423,19 @@ function updateAutopilotUI() {
         toggleBtn.textContent = '⏹️ 停止';
         toggleBtn.className = 'btn btn-sell';
         durationInput.disabled = true;
-        
+
         const elapsed = Date.now() - gameState.autopilotStartTime;
         const elapsedMinutes = Math.floor(elapsed / 60000);
-        const remaining = gameState.autopilotDurationMinutes - elapsedMinutes;
-        
-        if (remaining > 0) {
-            timerSpan.textContent = `⏱️ 残り: ${remaining}分`;
+        const remainingMinutes = gameState.autopilotDurationMinutes - elapsedMinutes;
+
+        if (remainingMinutes > 0) {
+            const hours = Math.floor(remainingMinutes / 60);
+            const minutes = remainingMinutes % 60;
+            if (hours > 0) {
+                timerSpan.textContent = `⏱️ 残り: ${hours}時間${minutes}分`;
+            } else {
+                timerSpan.textContent = `⏱️ 残り: ${minutes}分`;
+            }
         } else {
             timerSpan.textContent = '⏱️ まもなく完了...';
         }
