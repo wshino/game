@@ -559,6 +559,27 @@ function completeVoyageImmediately(actualDays) {
     updateAll();
 }
 
+// Rest for one day to replenish port inventory
+function restOneDay() {
+    if (gameState.isVoyaging) {
+        addLog('❌ 航海中は休息できません');
+        return;
+    }
+
+    // Advance time by 1 day
+    gameState.gameTime += 1;
+
+    // Refresh port inventory
+    refreshPortInventory(1);
+
+    // Add log
+    addLog(`🌙 1日休息しました（${gameState.gameTime}日目）`);
+    addLog(`✨ 港の在庫が補充されました`);
+
+    // Update UI
+    updateAll();
+}
+
 function clearSave() {
     if (confirm('セーブデータを削除して最初からやり直しますか？')) {
         localStorage.removeItem('daikokaiGameSave');
