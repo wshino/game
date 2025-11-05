@@ -1980,46 +1980,51 @@ function runAutopilotCycle() {
     if (!gameState.autopilotActive) {
         return;
     }
-    
+
     // Check timeout
     if (checkAutopilotTimeout()) {
         return;
     }
-    
+
     // If currently voyaging, check progress
     if (gameState.isVoyaging) {
         setTimeout(() => runAutopilotCycle(), 1000);
         return;
     }
-    
+
     // Execute autopilot decision
-    executeAutopilotDecision();
-    
-    // Schedule next cycle
-    setTimeout(() => runAutopilotCycle(), 1000);
+    const actionTaken = executeAutopilotDecision();
+
+    // If no action was taken (waiting for inventory replenishment),
+    // wait longer before next cycle to avoid advancing time too quickly
+    const nextCycleDelay = actionTaken ? 1000 : 3000;
+    setTimeout(() => runAutopilotCycle(), nextCycleDelay);
 }
 
 // Execute autopilot decision (buy/sell/travel)
 function executeAutopilotDecision() {
+    // Track if any action was taken this cycle
+    let actionTaken = false;
+
     // Find the most profitable trade route
     const bestTrade = findBestTrade();
-    
+
     if (bestTrade) {
         // If we have goods to sell, sell them first
         const hasGoodsToSell = Object.keys(gameState.inventory).some(goodId => {
             return gameState.inventory[goodId] > 0 && goodId !== 'food' && goodId !== 'water';
         });
-        
+
         if (hasGoodsToSell && bestTrade.action === 'sell') {
             // Sell all profitable goods at current port
             for (const goodId in gameState.inventory) {
                 if (goodId === 'food' || goodId === 'water') continue;
-                
+
                 const quantity = gameState.inventory[goodId];
                 if (quantity > 0) {
                     const sellPrice = getPrice(goodId, false);
                     const totalValue = sellPrice * quantity;
-                    
+
                     gameState.gold += totalValue;
                     gameState.autopilotReport.trades.push({
                         port: gameState.currentPort,
@@ -2034,6 +2039,7 @@ function executeAutopilotDecision() {
             }
             addLog(`🤖 商品を売却しました`);
             updateAll();
+            actionTaken = true;
         } else if (bestTrade.action === 'buy') {
             // Buy goods at current port
             const goodId = bestTrade.goodId;
@@ -2041,25 +2047,25 @@ function executeAutopilotDecision() {
             const buyPrice = getPrice(goodId, true);
             const portStock = getPortStock(gameState.currentPort, goodId);
             const cargoSpace = getCargoSpace();
-            
+
             // Calculate travel cost to destination
             const distance = portDistances[gameState.currentPort][destinationPortId];
             const estimatedDays = Math.max(1, Math.round(distance / gameState.ship.speed));
             const supplyCost = calculateSupplyCost(estimatedDays);
-            
+
             // Reserve money for supplies - calculate how many to buy
             const availableMoneyForGoods = Math.max(0, gameState.gold - supplyCost - AUTOPILOT_CONFIG.SAFETY_RESERVE);
             const maxByMoney = Math.floor(availableMoneyForGoods * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO / buyPrice);
             const maxByCargo = Math.floor(cargoSpace * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO);
             const maxByStock = portStock;
             const maxCanBuy = Math.min(maxByMoney, maxByCargo, maxByStock);
-            
+
             if (maxCanBuy >= AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
                 const totalCost = maxCanBuy * buyPrice;
                 gameState.gold -= totalCost;
                 gameState.inventory[goodId] = (gameState.inventory[goodId] || 0) + maxCanBuy;
                 reducePortStock(gameState.currentPort, goodId, maxCanBuy);
-                
+
                 gameState.autopilotReport.trades.push({
                     port: gameState.currentPort,
                     action: 'buy',
@@ -2068,19 +2074,20 @@ function executeAutopilotDecision() {
                     price: buyPrice,
                     total: totalCost
                 });
-                
+
                 addLog(`🤖 ${goods[goodId].name}を${maxCanBuy}個購入しました`);
                 updateAll();
+                actionTaken = true;
             }
         } else if (bestTrade.action === 'travel') {
             // Travel to the best destination
             const destinationPortId = bestTrade.destinationPort;
-            
+
             // Auto-supply before voyage
             const baseDays = portDistances[gameState.currentPort][destinationPortId];
             const estimatedDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
             autoSupplyForVoyage(estimatedDays);
-            
+
             // Check if we have enough supplies
             const suppliesCheck = hasEnoughSupplies(estimatedDays);
             if (suppliesCheck.hasEnough) {
@@ -2089,12 +2096,25 @@ function executeAutopilotDecision() {
                     to: ports[destinationPortId].name,
                     days: estimatedDays
                 });
-                
+
                 addLog(`🤖 ${ports[destinationPortId].name}へ向かいます`);
                 startVoyage(destinationPortId);
+                actionTaken = true;
             }
         }
     }
+
+    // If no action was taken (stuck due to lack of supplies or no profitable trades),
+    // advance time by 1 day to allow inventory to replenish
+    if (!actionTaken) {
+        gameState.gameTime += 1;
+        refreshPortInventory(1);
+        addLog(`⏰ 翌日になりました (${gameState.gameTime}日目) - 在庫が補充されました`);
+        saveGame();
+        updateAll();
+    }
+
+    return actionTaken;
 }
 
 // Find the best trade opportunity
