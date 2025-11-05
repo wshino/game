@@ -1920,11 +1920,40 @@ function stopAutopilot() {
     if (!gameState.autopilotActive) {
         return;
     }
-    
+
+    // Sell all remaining goods before stopping
+    const hasGoodsToSell = Object.keys(gameState.inventory).some(goodId => {
+        return gameState.inventory[goodId] > 0 && goodId !== 'food' && goodId !== 'water';
+    });
+
+    if (hasGoodsToSell) {
+        for (const goodId in gameState.inventory) {
+            if (goodId === 'food' || goodId === 'water') continue;
+
+            const quantity = gameState.inventory[goodId];
+            if (quantity > 0) {
+                const sellPrice = getPrice(goodId, false);
+                const totalValue = sellPrice * quantity;
+
+                gameState.gold += totalValue;
+                gameState.autopilotReport.trades.push({
+                    port: gameState.currentPort,
+                    action: 'sell',
+                    good: goods[goodId].name,
+                    quantity: quantity,
+                    price: sellPrice,
+                    total: totalValue
+                });
+                gameState.inventory[goodId] = 0;
+            }
+        }
+        addLog(`🤖 オートパイロット終了時に残りの商品を売却しました`);
+    }
+
     gameState.autopilotActive = false;
     const report = generateAutopilotReport();
     showAutopilotReport(report);
-    
+
     saveGame();
     updateAll();
 }
