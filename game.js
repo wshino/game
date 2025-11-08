@@ -41,7 +41,8 @@ const AUTOPILOT_CONFIG = {
     PROFIT_IMPROVEMENT_RATIO: 0.05,// Require 5% better profit to travel for selling (reduced from 10% for more aggressive movement)
     MINIMUM_PURCHASE_MULTIPLIER: 5,// Must afford at least 5 units to buy
     MINIMUM_CARGO_SPACE: 10,       // Minimum cargo space needed to buy
-    MAX_ESTIMATED_QUANTITY: 100    // Maximum quantity to estimate for profitability calculation (increased from 50)
+    MAX_ESTIMATED_QUANTITY: 100,   // Maximum quantity to estimate for profitability calculation (increased from 50)
+    STOCK_WAIT_THRESHOLD: 0.90     // Wait for inventory if stock is less than 90% of desired purchase quantity
 };
 
 // Port Definitions (based on historical 15-16th century city sizes)
@@ -2082,9 +2083,21 @@ function executeAutopilotDecision() {
             const maxByMoney = Math.floor(availableMoneyForGoods * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO / buyPrice);
             const maxByCargo = Math.floor(cargoSpace * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO);
             const maxByStock = portStock;
-            const maxCanBuy = Math.min(maxByMoney, maxByCargo, maxByStock);
 
-            if (maxCanBuy >= AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
+            // Ideal purchase quantity (limited by money and cargo, not stock)
+            const idealQuantity = Math.min(maxByMoney, maxByCargo);
+            const maxCanBuy = Math.min(idealQuantity, maxByStock);
+
+            // Check if stock is the limiting factor and we should wait for more inventory
+            const stockIsLimiting = maxByStock < idealQuantity;
+            const stockTooLow = maxByStock < idealQuantity * AUTOPILOT_CONFIG.STOCK_WAIT_THRESHOLD;
+
+            if (stockIsLimiting && stockTooLow && maxByStock < maxByCargo) {
+                // Wait for inventory to replenish - don't buy yet
+                addLog(`⏰ ${goods[goodId].name}の在庫回復を待機中... (現在: ${maxByStock}/${idealQuantity})`);
+                actionTaken = false;  // Will trigger time advancement
+            } else if (maxCanBuy >= AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
+                // Stock is sufficient or close enough - proceed with purchase
                 const totalCost = maxCanBuy * buyPrice;
                 gameState.gold -= totalCost;
                 gameState.inventory[goodId] = (gameState.inventory[goodId] || 0) + maxCanBuy;
