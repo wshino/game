@@ -36,7 +36,7 @@ const gameState = {
 // Autopilot configuration constants
 const AUTOPILOT_CONFIG = {
     SAFETY_RESERVE: 50,            // Reserve gold for emergencies (reduced for more aggressive trading)
-    CARGO_UTILIZATION_RATIO: 0.9,  // Use 90% of available cargo/money for trading (increased from 70%)
+    CARGO_UTILIZATION_RATIO: 0.98, // Use 98% of available cargo/money for trading (increased from 90% to maximize profit)
     MINIMUM_PROFIT_THRESHOLD: 50,  // Minimum expected profit to execute trade (reduced from 100 to catch more opportunities)
     PROFIT_IMPROVEMENT_RATIO: 0.05,// Require 5% better profit to travel for selling (reduced from 10% for more aggressive movement)
     MINIMUM_PURCHASE_MULTIPLIER: 5,// Must afford at least 5 units to buy
