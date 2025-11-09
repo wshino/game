@@ -94,20 +94,28 @@ describe('Autopilot functionality', () => {
             speed: 1,
             crew: 20
         };
-        
+
         const trade = game.findBestTrade();
-        
-        // Should return a trade decision (buy or travel)
+
+        // Should return a trade decision (prepare_voyage, buy, sell, or travel)
         // The key is that it should only return a trade if it's profitable after costs
         if (trade !== null) {
-            assert.ok(['buy', 'sell', 'travel'].includes(trade.action));
-            
+            assert.ok(['prepare_voyage', 'buy', 'sell', 'travel'].includes(trade.action));
+
+            // If it's a prepare_voyage action, verify it has required fields
+            if (trade.action === 'prepare_voyage') {
+                assert.ok(trade.destinationPort);
+                assert.ok(trade.purchasePlan);
+                assert.ok(trade.purchasePlan.goodsToBuy);
+                assert.ok(Array.isArray(trade.purchasePlan.goodsToBuy));
+            }
+
             // If it's a buy action, verify it has required fields
             if (trade.action === 'buy') {
                 assert.ok(trade.goodId);
                 assert.ok(trade.destinationPort);
             }
-            
+
             // If it's a travel action, verify destination is set
             if (trade.action === 'travel') {
                 assert.ok(trade.destinationPort);

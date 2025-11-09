@@ -2031,6 +2031,12 @@ function executeAutopilotDecision() {
     // Track if any action was taken this cycle
     let actionTaken = false;
 
+    // If we have an active purchase plan, continue executing it
+    if (gameState.autopilotPlan && gameState.autopilotPlan.active) {
+        actionTaken = executePurchasePlan();
+        return actionTaken;
+    }
+
     // Find the most profitable trade route
     const bestTrade = findBestTrade();
 
@@ -2065,57 +2071,6 @@ function executeAutopilotDecision() {
             addLog(`🤖 商品を売却しました`);
             updateAll();
             actionTaken = true;
-        } else if (bestTrade.action === 'buy') {
-            // Buy goods at current port
-            const goodId = bestTrade.goodId;
-            const destinationPortId = bestTrade.destinationPort;
-            const buyPrice = getPrice(goodId, true);
-            const portStock = getPortStock(gameState.currentPort, goodId);
-            const cargoSpace = getCargoSpace();
-
-            // Calculate travel cost to destination
-            const distance = portDistances[gameState.currentPort][destinationPortId];
-            const estimatedDays = Math.max(1, Math.round(distance / gameState.ship.speed));
-            const supplyCost = calculateSupplyCost(estimatedDays);
-
-            // Reserve money for supplies - calculate how many to buy
-            const availableMoneyForGoods = Math.max(0, gameState.gold - supplyCost - AUTOPILOT_CONFIG.SAFETY_RESERVE);
-            const maxByMoney = Math.floor(availableMoneyForGoods * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO / buyPrice);
-            const maxByCargo = Math.floor(cargoSpace * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO);
-            const maxByStock = portStock;
-
-            // Ideal purchase quantity (limited by money and cargo, not stock)
-            const idealQuantity = Math.min(maxByMoney, maxByCargo);
-            const maxCanBuy = Math.min(idealQuantity, maxByStock);
-
-            // Check if stock is the limiting factor and we should wait for more inventory
-            const stockIsLimiting = maxByStock < idealQuantity;
-            const stockTooLow = maxByStock < idealQuantity * AUTOPILOT_CONFIG.STOCK_WAIT_THRESHOLD;
-
-            if (stockIsLimiting && stockTooLow && maxByStock < maxByCargo) {
-                // Wait for inventory to replenish - don't buy yet
-                addLog(`⏰ ${goods[goodId].name}の在庫回復を待機中... (現在: ${maxByStock}/${idealQuantity})`);
-                actionTaken = false;  // Will trigger time advancement
-            } else if (maxCanBuy >= AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
-                // Stock is sufficient or close enough - proceed with purchase
-                const totalCost = maxCanBuy * buyPrice;
-                gameState.gold -= totalCost;
-                gameState.inventory[goodId] = (gameState.inventory[goodId] || 0) + maxCanBuy;
-                reducePortStock(gameState.currentPort, goodId, maxCanBuy);
-
-                gameState.autopilotReport.trades.push({
-                    port: gameState.currentPort,
-                    action: 'buy',
-                    good: goods[goodId].name,
-                    quantity: maxCanBuy,
-                    price: buyPrice,
-                    total: totalCost
-                });
-
-                addLog(`🤖 ${goods[goodId].name}を${maxCanBuy}個購入しました`);
-                updateAll();
-                actionTaken = true;
-            }
         } else if (bestTrade.action === 'travel') {
             // Travel to the best destination
             const destinationPortId = bestTrade.destinationPort;
@@ -2138,6 +2093,16 @@ function executeAutopilotDecision() {
                 startVoyage(destinationPortId);
                 actionTaken = true;
             }
+        } else if (bestTrade.action === 'prepare_voyage') {
+            // NEW: Initialize purchase plan for the voyage
+            gameState.autopilotPlan = {
+                active: true,
+                destinationPort: bestTrade.destinationPort,
+                purchasePlan: bestTrade.purchasePlan,
+                suppliesReady: false
+            };
+            addLog(`🤖 ${ports[bestTrade.destinationPort].name}への航路を計画しました（予想利益: ${Math.floor(bestTrade.purchasePlan.totalProfit)}G）`);
+            actionTaken = true;
         }
     }
 
@@ -2154,7 +2119,180 @@ function executeAutopilotDecision() {
     return actionTaken;
 }
 
-// Find the best trade opportunity
+// Execute the active purchase plan step by step
+function executePurchasePlan() {
+    const plan = gameState.autopilotPlan;
+    let actionTaken = false;
+
+    // Step 1: Buy water and food first
+    if (!plan.suppliesReady) {
+        const waterNeeded = plan.purchasePlan.waterNeeded;
+        const foodNeeded = plan.purchasePlan.foodNeeded;
+
+        if (waterNeeded > 0 || foodNeeded > 0) {
+            let purchased = false;
+
+            // Buy water
+            if (waterNeeded > 0) {
+                const waterPrice = goods.water.basePrice * portPrices[gameState.currentPort].water;
+                const waterCost = Math.ceil(waterNeeded * waterPrice);
+
+                if (gameState.gold >= waterCost) {
+                    gameState.gold -= waterCost;
+                    gameState.inventory.water = (gameState.inventory.water || 0) + waterNeeded;
+
+                    gameState.autopilotReport.trades.push({
+                        port: gameState.currentPort,
+                        action: 'buy',
+                        good: goods.water.name,
+                        quantity: waterNeeded,
+                        price: waterPrice,
+                        total: waterCost
+                    });
+
+                    addLog(`🤖 水を${waterNeeded}個購入しました`);
+                    purchased = true;
+                }
+            }
+
+            // Buy food
+            if (foodNeeded > 0) {
+                const foodPrice = goods.food.basePrice * portPrices[gameState.currentPort].food;
+                const foodCost = Math.ceil(foodNeeded * foodPrice);
+
+                if (gameState.gold >= foodCost) {
+                    gameState.gold -= foodCost;
+                    gameState.inventory.food = (gameState.inventory.food || 0) + foodNeeded;
+
+                    gameState.autopilotReport.trades.push({
+                        port: gameState.currentPort,
+                        action: 'buy',
+                        good: goods.food.name,
+                        quantity: foodNeeded,
+                        price: foodPrice,
+                        total: foodCost
+                    });
+
+                    addLog(`🤖 食料を${foodNeeded}個購入しました`);
+                    purchased = true;
+                }
+            }
+
+            if (purchased) {
+                plan.suppliesReady = true;
+                updateAll();
+                actionTaken = true;
+            }
+        } else {
+            plan.suppliesReady = true;
+            actionTaken = true;
+        }
+
+        return actionTaken;
+    }
+
+    // Step 2: Buy goods according to the purchase plan
+    const goodsToBuy = plan.purchasePlan.goodsToBuy;
+    let allPurchased = true;
+
+    for (const item of goodsToBuy) {
+        const remaining = item.maxQuantity - item.purchased;
+
+        if (remaining <= 0) continue;
+
+        allPurchased = false;
+
+        const goodId = item.goodId;
+        const buyPrice = getPrice(goodId, true);
+        const portStock = getPortStock(gameState.currentPort, goodId);
+        const cargoSpace = getCargoSpace();
+
+        // Calculate how many we can buy now
+        const maxByMoney = Math.floor(gameState.gold / buyPrice);
+        const maxByCargo = cargoSpace;
+        const maxByStock = portStock;
+        const idealQuantity = remaining;
+
+        const canBuyNow = Math.min(maxByMoney, maxByCargo, maxByStock, idealQuantity);
+
+        // Check if we should wait for more stock
+        const stockIsLimiting = maxByStock < idealQuantity;
+        const stockTooLow = maxByStock < idealQuantity * AUTOPILOT_CONFIG.STOCK_WAIT_THRESHOLD;
+
+        if (stockIsLimiting && stockTooLow && canBuyNow < idealQuantity && cargoSpace > AUTOPILOT_CONFIG.MINIMUM_CARGO_SPACE) {
+            // Wait for inventory to replenish
+            addLog(`⏰ ${goods[goodId].name}の在庫回復を待機中... (現在: ${maxByStock}/${idealQuantity})`);
+            actionTaken = false;
+            return actionTaken;
+        }
+
+        if (canBuyNow >= AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
+            // Purchase the goods
+            const totalCost = canBuyNow * buyPrice;
+            gameState.gold -= totalCost;
+            gameState.inventory[goodId] = (gameState.inventory[goodId] || 0) + canBuyNow;
+            reducePortStock(gameState.currentPort, goodId, canBuyNow);
+
+            item.purchased += canBuyNow;
+
+            gameState.autopilotReport.trades.push({
+                port: gameState.currentPort,
+                action: 'buy',
+                good: goods[goodId].name,
+                quantity: canBuyNow,
+                price: buyPrice,
+                total: totalCost
+            });
+
+            addLog(`🤖 ${goods[goodId].name}を${canBuyNow}個購入しました (${item.purchased}/${item.maxQuantity})`);
+            updateAll();
+            actionTaken = true;
+
+            // If cargo is nearly full, stop buying more
+            if (getCargoSpace() < AUTOPILOT_CONFIG.MINIMUM_CARGO_SPACE) {
+                allPurchased = true;
+                break;
+            }
+
+            // Continue to next item after this purchase
+            return actionTaken;
+        }
+    }
+
+    // Step 3: If all goods purchased or cargo full, depart
+    if (allPurchased || getCargoSpace() < AUTOPILOT_CONFIG.MINIMUM_CARGO_SPACE) {
+        const destinationPortId = plan.destinationPort;
+        const distance = portDistances[gameState.currentPort][destinationPortId];
+        const estimatedDays = Math.max(1, Math.round(distance / gameState.ship.speed));
+
+        // Check if we have enough supplies
+        const suppliesCheck = hasEnoughSupplies(estimatedDays);
+        if (suppliesCheck.hasEnough) {
+            gameState.autopilotReport.voyages.push({
+                from: ports[gameState.currentPort].name,
+                to: ports[destinationPortId].name,
+                days: estimatedDays
+            });
+
+            addLog(`🤖 積荷完了！${ports[destinationPortId].name}へ出港します`);
+
+            // Clear the plan
+            gameState.autopilotPlan = null;
+
+            startVoyage(destinationPortId);
+            actionTaken = true;
+        } else {
+            // Should not happen as we bought supplies already, but handle it
+            addLog(`❌ 補給品が不足しています`);
+            gameState.autopilotPlan = null;
+            actionTaken = false;
+        }
+    }
+
+    return actionTaken;
+}
+
+// Find the best trade opportunity based on total profit (not profit per unit)
 function findBestTrade() {
     const currentPortId = gameState.currentPort;
 
@@ -2229,17 +2367,83 @@ function findBestTrade() {
         }
     }
 
-    // No goods in inventory - find the most profitable trade
-    // Strategy: Find the good with highest profit margin (sell price - buy price - travel cost)
-    // Load as much as possible and go to the port where it sells for the most
+    // No goods in inventory - find the most profitable trade route
+    // NEW STRATEGY: Calculate total profit for each destination (not profit per unit)
+    // Consider multiple goods to maximize total profit
 
-    let bestProfitPerUnit = 0;
-    let bestGoodId = null;
+    let bestTotalProfit = 0;
     let bestDestPort = null;
-    let bestBuyPrice = 0;
-    let bestSellPrice = 0;
-    let bestSupplyCost = 0;
+    let bestPurchasePlan = null;
 
+    // Evaluate each potential destination
+    for (const destPortId in ports) {
+        if (destPortId === currentPortId) continue;
+
+        // Calculate optimal purchase plan for this destination
+        const plan = calculateOptimalPurchaseForDestination(destPortId);
+
+        if (plan && plan.totalProfit > bestTotalProfit && plan.totalProfit > AUTOPILOT_CONFIG.MINIMUM_PROFIT_THRESHOLD) {
+            bestTotalProfit = plan.totalProfit;
+            bestDestPort = destPortId;
+            bestPurchasePlan = plan;
+        }
+    }
+
+    // Return the best purchase plan
+    if (bestDestPort && bestPurchasePlan) {
+        const cargoSpace = getCargoSpace();
+        if (cargoSpace >= AUTOPILOT_CONFIG.MINIMUM_CARGO_SPACE) {
+            return {
+                action: 'prepare_voyage',
+                destinationPort: bestDestPort,
+                purchasePlan: bestPurchasePlan
+            };
+        }
+    }
+
+    // No profitable trade found
+    return null;
+}
+
+// Calculate the optimal purchase plan for a specific destination
+// Returns: { totalProfit, goodsToBuy: [...], supplyCost, waterNeeded, foodNeeded }
+function calculateOptimalPurchaseForDestination(destPortId) {
+    const currentPortId = gameState.currentPort;
+    const originalPort = gameState.currentPort;
+
+    // 1. Calculate travel cost and required supplies
+    const distance = portDistances[currentPortId][destPortId];
+    const estimatedDays = Math.max(1, Math.round(distance / gameState.ship.speed));
+    const supplyCost = calculateSupplyCost(estimatedDays);
+    const requiredSupplies = calculateRequiredSupplies(estimatedDays);
+
+    // 2. Calculate how much water and food we need to buy
+    const waterNeeded = Math.max(0, requiredSupplies.water - (gameState.inventory.water || 0));
+    const foodNeeded = Math.max(0, requiredSupplies.food - (gameState.inventory.food || 0));
+
+    // Calculate actual cost of supplies we need to buy
+    const waterPrice = goods.water.basePrice * portPrices[currentPortId].water;
+    const foodPrice = goods.food.basePrice * portPrices[currentPortId].food;
+    const actualSupplyCost = Math.ceil(waterNeeded * waterPrice + foodNeeded * foodPrice);
+
+    // 3. Reserve space for supplies
+    const suppliesSpace = waterNeeded + foodNeeded;
+    const cargoSpace = getCargoSpace() - suppliesSpace;
+
+    // Check if we have enough space even for supplies
+    if (cargoSpace < AUTOPILOT_CONFIG.MINIMUM_CARGO_SPACE) {
+        return null;
+    }
+
+    // 4. Calculate available money for goods (after supplies and safety reserve)
+    const availableMoney = Math.max(0, gameState.gold - actualSupplyCost - AUTOPILOT_CONFIG.SAFETY_RESERVE);
+
+    if (availableMoney <= 0) {
+        return null;
+    }
+
+    // 5. Build list of goods with their profit margins at destination
+    const goodsWithProfit = [];
     for (const goodId in goods) {
         if (goodId === 'food' || goodId === 'water') continue;
 
@@ -2248,74 +2452,75 @@ function findBestTrade() {
 
         if (portStock <= 0 || buyPrice <= 0) continue;
 
-        // Find the port where this good sells for the most
-        let highestSellPrice = 0;
-        let bestPortForThisGood = null;
-        let bestCostForThisGood = 0;
+        // Get sell price at destination
+        gameState.currentPort = destPortId;
+        const sellPrice = getPrice(goodId, false);
+        gameState.currentPort = originalPort;
 
-        for (const destPortId in ports) {
-            if (destPortId === currentPortId) continue;
+        const profitPerUnit = sellPrice - buyPrice;
 
-            // Get sell price at destination
-            const originalPort = gameState.currentPort;
-            gameState.currentPort = destPortId;
-            const sellPrice = getPrice(goodId, false);
-            gameState.currentPort = originalPort;
-
-            // Calculate travel cost
-            const distance = portDistances[currentPortId][destPortId];
-            const estimatedDays = Math.max(1, Math.round(distance / gameState.ship.speed));
-            const supplyCost = calculateSupplyCost(estimatedDays);
-
-            // Calculate profit per unit (including travel cost amortized)
-            // We'll divide travel cost by potential quantity later
-            if (sellPrice > highestSellPrice) {
-                highestSellPrice = sellPrice;
-                bestPortForThisGood = destPortId;
-                bestCostForThisGood = supplyCost;
-            }
-        }
-
-        // Calculate profit per unit for this good
-        if (bestPortForThisGood && highestSellPrice > buyPrice) {
-            // Estimate how many units we can buy
-            const cargoSpace = getCargoSpace();
-            const availableMoney = Math.max(0, gameState.gold - bestCostForThisGood - AUTOPILOT_CONFIG.SAFETY_RESERVE);
-            const maxByMoney = Math.floor(availableMoney * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO / buyPrice);
-            const maxByCargo = Math.floor(cargoSpace * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO);
-            const estimatedQuantity = Math.min(maxByMoney, maxByCargo, portStock);
-
-            if (estimatedQuantity >= AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
-                // Calculate total profit
-                const totalProfit = (highestSellPrice - buyPrice) * estimatedQuantity - bestCostForThisGood;
-                const profitPerUnit = totalProfit / estimatedQuantity;
-
-                if (profitPerUnit > bestProfitPerUnit && totalProfit > AUTOPILOT_CONFIG.MINIMUM_PROFIT_THRESHOLD) {
-                    bestProfitPerUnit = profitPerUnit;
-                    bestGoodId = goodId;
-                    bestDestPort = bestPortForThisGood;
-                    bestBuyPrice = buyPrice;
-                    bestSellPrice = highestSellPrice;
-                    bestSupplyCost = bestCostForThisGood;
-                }
-            }
+        if (profitPerUnit > 0) {
+            goodsWithProfit.push({
+                goodId,
+                buyPrice,
+                sellPrice,
+                profitPerUnit,
+                stock: portStock
+            });
         }
     }
 
-    // Execute the best trade found
-    if (bestGoodId && bestDestPort) {
-        const cargoSpace = getCargoSpace();
-        if (cargoSpace >= AUTOPILOT_CONFIG.MINIMUM_CARGO_SPACE) {
-            return {
-                action: 'buy',
-                goodId: bestGoodId,
-                destinationPort: bestDestPort
-            };
+    // Sort by profit per unit (greedy approach for knapsack problem)
+    goodsWithProfit.sort((a, b) => b.profitPerUnit - a.profitPerUnit);
+
+    // 6. Fill cargo with most profitable goods (greedy knapsack)
+    let remainingSpace = Math.floor(cargoSpace * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO);
+    let remainingMoney = availableMoney * AUTOPILOT_CONFIG.CARGO_UTILIZATION_RATIO;
+    const goodsToBuy = [];
+    let totalPurchaseCost = 0;
+    let totalRevenue = 0;
+
+    for (const good of goodsWithProfit) {
+        if (remainingSpace <= 0 || remainingMoney <= 0) break;
+
+        const maxByMoney = Math.floor(remainingMoney / good.buyPrice);
+        const maxByCargo = remainingSpace;
+        const maxByStock = good.stock;
+        const quantity = Math.min(maxByMoney, maxByCargo, maxByStock);
+
+        if (quantity >= AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
+            goodsToBuy.push({
+                goodId: good.goodId,
+                maxQuantity: quantity,
+                buyPrice: good.buyPrice,
+                sellPrice: good.sellPrice,
+                purchased: 0
+            });
+
+            const cost = quantity * good.buyPrice;
+            const revenue = quantity * good.sellPrice;
+
+            totalPurchaseCost += cost;
+            totalRevenue += revenue;
+            remainingSpace -= quantity;
+            remainingMoney -= cost;
         }
     }
 
-    // No profitable trade found
-    return null;
+    // 7. Calculate total profit (revenue - purchase cost - supply cost)
+    const totalProfit = totalRevenue - totalPurchaseCost - actualSupplyCost;
+
+    if (goodsToBuy.length === 0) {
+        return null;
+    }
+
+    return {
+        totalProfit,
+        goodsToBuy,
+        supplyCost: actualSupplyCost,
+        waterNeeded,
+        foodNeeded
+    };
 }
 
 // Helper function to calculate supply cost for a voyage
