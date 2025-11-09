@@ -2292,6 +2292,100 @@ function executePurchasePlan() {
     return actionTaken;
 }
 
+// Simulate offline autopilot progress
+function simulateOfflineAutopilot(offlineMinutes) {
+    const summary = {
+        cyclesExecuted: 0,
+        tradesCompleted: 0,
+        voyagesCompleted: 0,
+        goldStart: gameState.gold,
+        goldEnd: 0,
+        timeSimulated: 0 // in seconds
+    };
+
+    const maxSimulationTime = offlineMinutes * 60; // Convert to seconds
+    let simulatedTime = 0;
+
+    // Temporarily disable logging during simulation
+    const originalLogs = [];
+    const originalAddLog = addLog;
+    let logEnabled = false;
+
+    addLog = function(message) {
+        if (logEnabled) {
+            originalAddLog(message);
+        }
+    };
+
+    try {
+        while (simulatedTime < maxSimulationTime && gameState.autopilotActive) {
+            summary.cyclesExecuted++;
+
+            // Check timeout
+            if (checkAutopilotTimeout()) {
+                break;
+            }
+
+            // If currently voyaging, complete the voyage instantly
+            if (gameState.isVoyaging) {
+                const actualDays = gameState.voyageActualDays || gameState.voyageEstimatedDays;
+
+                // Complete voyage without UI updates
+                gameState.gameTime += actualDays;
+                consumeSupplies(actualDays);
+
+                const destinationPortId = gameState.voyageDestinationPort;
+                gameState.currentPort = destinationPortId;
+                refreshPortInventory(actualDays);
+
+                // Clear voyage state
+                gameState.isVoyaging = false;
+                gameState.voyageStartTime = null;
+                gameState.voyageStartPort = null;
+                gameState.voyageDestinationPort = null;
+                gameState.voyageEstimatedDays = null;
+                gameState.voyageActualDays = null;
+                gameState.voyageWeatherHistory = [];
+
+                summary.voyagesCompleted++;
+
+                // Voyages complete instantly in simulation, consuming minimal simulation time
+                simulatedTime += 10; // 10 seconds for voyage completion processing
+                continue;
+            }
+
+            // Execute autopilot decision
+            const goldBefore = gameState.gold;
+            const actionTaken = executeAutopilotDecision();
+            const goldAfter = gameState.gold;
+
+            // Track trades (buying or selling)
+            if (goldBefore !== goldAfter && !gameState.isVoyaging) {
+                summary.tradesCompleted++;
+            }
+
+            // Advance simulated time based on action
+            const cycleDelay = actionTaken ? 1 : 3; // 1 second if action, 3 if waiting
+            simulatedTime += cycleDelay;
+
+            // Safety check: prevent infinite loops
+            if (summary.cyclesExecuted > 10000) {
+                logEnabled = true;
+                addLog('⚠️ シミュレーション上限に到達しました');
+                break;
+            }
+        }
+    } finally {
+        // Restore original logging function
+        addLog = originalAddLog;
+    }
+
+    summary.goldEnd = gameState.gold;
+    summary.timeSimulated = simulatedTime;
+
+    return summary;
+}
+
 // Find the best trade opportunity based on total profit (not profit per unit)
 function findBestTrade() {
     const currentPortId = gameState.currentPort;
@@ -2719,14 +2813,53 @@ function initGame() {
             // Check if autopilot should still be running
             const elapsed = Date.now() - gameState.autopilotStartTime;
             const elapsedMinutes = elapsed / 60000;
-            
+
             if (elapsedMinutes >= gameState.autopilotDurationMinutes) {
                 // Autopilot time expired, show report
                 stopAutopilot();
             } else {
-                // Resume autopilot
-                addLog('🤖 オートパイロット再開...');
-                runAutopilotCycle();
+                // Calculate remaining time before simulation
+                const remainingMinutes = gameState.autopilotDurationMinutes - elapsedMinutes;
+
+                // Simulate offline autopilot progress
+                const offlineMinutes = Math.min(elapsedMinutes, gameState.autopilotDurationMinutes);
+
+                if (offlineMinutes > 0.1) { // Only simulate if offline for more than 6 seconds
+                    addLog('🤖 オフライン中のオートパイロット進行を計算中...');
+
+                    const summary = simulateOfflineAutopilot(offlineMinutes);
+
+                    // Display summary
+                    addLog('📊 オフライン期間のオートパイロットレポート:');
+                    addLog(`⏱️  シミュレーション時間: ${Math.floor(offlineMinutes)}分`);
+                    addLog(`🔄 サイクル実行: ${summary.cyclesExecuted}回`);
+                    addLog(`🚢 航海完了: ${summary.voyagesCompleted}回`);
+                    addLog(`💰 開始時の資金: ${summary.goldStart}G`);
+                    addLog(`💰 現在の資金: ${summary.goldEnd}G`);
+
+                    const profit = summary.goldEnd - summary.goldStart;
+                    if (profit > 0) {
+                        addLog(`📈 利益: +${profit}G`);
+                    } else if (profit < 0) {
+                        addLog(`📉 損失: ${profit}G`);
+                    } else {
+                        addLog(`💤 利益: 0G`);
+                    }
+
+                    // Reset autopilot timing to prevent double-counting on next reload
+                    gameState.autopilotStartTime = Date.now();
+                    gameState.autopilotDurationMinutes = remainingMinutes;
+
+                    // Save the updated state
+                    saveGame();
+                }
+
+                // Check if there's still time remaining
+                if (remainingMinutes > 0 && gameState.autopilotActive) {
+                    // Resume autopilot
+                    addLog('🤖 オートパイロット再開...');
+                    runAutopilotCycle();
+                }
             }
         }
     }
