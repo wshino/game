@@ -149,96 +149,108 @@ export function executeAutopilotDecision() {
     if (gameState.autopilotPlan && gameState.autopilotPlan.active) {
         addLog(`🤖 [DEBUG] 購入プランを実行中... (目的地: ${ports[gameState.autopilotPlan.destinationPort].name})`);
         actionTaken = executePurchasePlan();
-        return actionTaken;
-    }
 
-    // Find the most profitable trade route
-    const bestTrade = findBestTrade();
-
-    if (!bestTrade) {
-        addLog(`🤖 [DEBUG] 利益の出る取引ルートが見つかりませんでした`);
+        // If action was taken, return immediately to continue execution
+        if (actionTaken) {
+            return actionTaken;
+        }
+        // If no action (waiting for inventory), fall through to time advancement logic below
+        // Skip finding new trades since we already have a plan
     } else {
-        addLog(`🤖 [DEBUG] 最適な取引: ${bestTrade.action}${bestTrade.destinationPort ? ' → ' + ports[bestTrade.destinationPort].name : ''}`);
-    }
+        // Find the most profitable trade route only if we don't have an active plan
+        const bestTrade = findBestTrade();
 
-    if (bestTrade) {
-        // If we have goods to sell, sell them first
-        const hasGoodsToSell = Object.keys(gameState.inventory).some(goodId => {
-            return gameState.inventory[goodId] > 0 && goodId !== 'food' && goodId !== 'water';
-        });
-
-        if (hasGoodsToSell) {
-            const goodsList = Object.keys(gameState.inventory)
-                .filter(goodId => gameState.inventory[goodId] > 0 && goodId !== 'food' && goodId !== 'water')
-                .map(goodId => `${goods[goodId].name}:${gameState.inventory[goodId]}`)
-                .join(', ');
-            addLog(`🤖 [DEBUG] 売却可能な商品: ${goodsList}`);
+        if (!bestTrade) {
+            addLog(`🤖 [DEBUG] 利益の出る取引ルートが見つかりませんでした`);
+        } else {
+            addLog(`🤖 [DEBUG] 最適な取引: ${bestTrade.action}${bestTrade.destinationPort ? ' → ' + ports[bestTrade.destinationPort].name : ''}`);
         }
 
-        if (hasGoodsToSell && bestTrade.action === 'sell') {
-            // Sell all profitable goods at current port
-            for (const goodId in gameState.inventory) {
-                if (goodId === 'food' || goodId === 'water') continue;
+        if (bestTrade) {
+            // If we have goods to sell, sell them first
+            const hasGoodsToSell = Object.keys(gameState.inventory).some(goodId => {
+                return gameState.inventory[goodId] > 0 && goodId !== 'food' && goodId !== 'water';
+            });
 
-                const quantity = gameState.inventory[goodId];
-                if (quantity > 0) {
-                    const sellPrice = getPrice(goodId, false);
-                    const totalValue = sellPrice * quantity;
-
-                    gameState.gold += totalValue;
-                    gameState.autopilotReport.trades.push({
-                        port: gameState.currentPort,
-                        action: 'sell',
-                        good: goods[goodId].name,
-                        quantity: quantity,
-                        price: sellPrice,
-                        total: totalValue
-                    });
-                    gameState.inventory[goodId] = 0;
-                }
+            if (hasGoodsToSell) {
+                const goodsList = Object.keys(gameState.inventory)
+                    .filter(goodId => gameState.inventory[goodId] > 0 && goodId !== 'food' && goodId !== 'water')
+                    .map(goodId => `${goods[goodId].name}:${gameState.inventory[goodId]}`)
+                    .join(', ');
+                addLog(`🤖 [DEBUG] 売却可能な商品: ${goodsList}`);
             }
-            addLog(`🤖 商品を売却しました`);
-            updateAll();
-            actionTaken = true;
-        } else if (bestTrade.action === 'travel') {
-            // Travel to the best destination
-            const destinationPortId = bestTrade.destinationPort;
 
-            // Auto-supply before voyage
-            const baseDays = portDistances[gameState.currentPort][destinationPortId];
-            const estimatedDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
-            autoSupplyForVoyage(estimatedDays);
+            if (hasGoodsToSell && bestTrade.action === 'sell') {
+                // Sell all profitable goods at current port
+                for (const goodId in gameState.inventory) {
+                    if (goodId === 'food' || goodId === 'water') continue;
 
-            // Check if we have enough supplies
-            const suppliesCheck = hasEnoughSupplies(estimatedDays);
-            if (suppliesCheck.hasEnough) {
-                gameState.autopilotReport.voyages.push({
-                    from: ports[gameState.currentPort].name,
-                    to: ports[destinationPortId].name,
-                    days: estimatedDays
-                });
+                    const quantity = gameState.inventory[goodId];
+                    if (quantity > 0) {
+                        const sellPrice = getPrice(goodId, false);
+                        const totalValue = sellPrice * quantity;
 
-                addLog(`🤖 ${ports[destinationPortId].name}へ向かいます`);
-                startVoyage(destinationPortId);
+                        gameState.gold += totalValue;
+                        gameState.autopilotReport.trades.push({
+                            port: gameState.currentPort,
+                            action: 'sell',
+                            good: goods[goodId].name,
+                            quantity: quantity,
+                            price: sellPrice,
+                            total: totalValue
+                        });
+                        gameState.inventory[goodId] = 0;
+                    }
+                }
+                addLog(`🤖 商品を売却しました`);
+                updateAll();
+                actionTaken = true;
+            } else if (bestTrade.action === 'travel') {
+                // Travel to the best destination
+                const destinationPortId = bestTrade.destinationPort;
+
+                // Auto-supply before voyage
+                const baseDays = portDistances[gameState.currentPort][destinationPortId];
+                const estimatedDays = Math.max(1, Math.round(baseDays / gameState.ship.speed));
+                autoSupplyForVoyage(estimatedDays);
+
+                // Check if we have enough supplies
+                const suppliesCheck = hasEnoughSupplies(estimatedDays);
+                if (suppliesCheck.hasEnough) {
+                    gameState.autopilotReport.voyages.push({
+                        from: ports[gameState.currentPort].name,
+                        to: ports[destinationPortId].name,
+                        days: estimatedDays
+                    });
+
+                    addLog(`🤖 ${ports[destinationPortId].name}へ向かいます`);
+                    startVoyage(destinationPortId);
+                    actionTaken = true;
+                }
+            } else if (bestTrade.action === 'prepare_voyage') {
+                // NEW: Initialize purchase plan for the voyage
+                gameState.autopilotPlan = {
+                    active: true,
+                    destinationPort: bestTrade.destinationPort,
+                    purchasePlan: bestTrade.purchasePlan,
+                    suppliesReady: false
+                };
+                addLog(`🤖 ${ports[bestTrade.destinationPort].name}への航路を計画しました（予想利益: ${Math.floor(bestTrade.purchasePlan.totalProfit)}G）`);
                 actionTaken = true;
             }
-        } else if (bestTrade.action === 'prepare_voyage') {
-            // NEW: Initialize purchase plan for the voyage
-            gameState.autopilotPlan = {
-                active: true,
-                destinationPort: bestTrade.destinationPort,
-                purchasePlan: bestTrade.purchasePlan,
-                suppliesReady: false
-            };
-            addLog(`🤖 ${ports[bestTrade.destinationPort].name}への航路を計画しました（予想利益: ${Math.floor(bestTrade.purchasePlan.totalProfit)}G）`);
-            actionTaken = true;
         }
-    }
+    } // End of else block for when we don't have an active purchase plan
 
-    // If no action was taken (stuck due to lack of supplies or no profitable trades),
+    // If no action was taken (waiting for inventory or stuck),
     // advance time by 1 day to allow inventory to replenish
     if (!actionTaken) {
-        const reason = !bestTrade ? '利益の出る取引がない' : '条件を満たせない';
+        let reason;
+        if (gameState.autopilotPlan && gameState.autopilotPlan.active) {
+            reason = '在庫回復待ち';
+        } else {
+            // bestTrade is defined only when no active plan exists
+            reason = typeof bestTrade === 'undefined' || !bestTrade ? '利益の出る取引がない' : '条件を満たせない';
+        }
         addLog(`🤖 [DEBUG] アクション未実行 (理由: ${reason}、資金: ${gameState.gold}G)`);
         gameState.gameTime += 1;
         refreshPortInventory(1);
