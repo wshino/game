@@ -50,3 +50,13 @@ export function reducePortStock(portId, goodId, amount) {
     }
     portInventory[portId][goodId] = Math.max(0, portInventory[portId][goodId] - amount);
 }
+
+// CommonJS support for tests
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        initializePortInventory,
+        refreshPortInventory,
+        getPortStock,
+        reducePortStock
+    };
+}

@@ -598,7 +598,9 @@ export function completeVoyage(destinationPortId, actualDays) {
         if (modal) {
             modal.remove();
         }
-        updateAll();
+        if (updateAll) {
+            updateAll();
+        }
     }, 2000);
 }
 
@@ -663,7 +665,9 @@ export function selectDestination(portId) {
         addLog(`💡 資金、積載量、または港の在庫を確認してください`);
     }
 
-    updateAll();
+    if (updateAll) {
+        updateAll();
+    }
 }
 
 // Start voyage to selected destination
@@ -687,6 +691,26 @@ export function cancelDestination() {
     if (gameState.selectedDestination) {
         addLog(`🚫 ${ports[gameState.selectedDestination].name}への航海を取り消しました`);
         gameState.selectedDestination = null;
-        updateAll();
+        if (updateAll) {
+            updateAll();
+        }
     }
+}
+
+// CommonJS support for tests
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        getRandomWeather,
+        startVoyage,
+        simulateVoyage,
+        completeVoyage,
+        selectDestination,
+        startSelectedVoyage,
+        cancelDestination,
+        initializeVoyageMap,
+        updateShipPosition,
+        showVoyageModal,
+        showVoyageModalInProgress,
+        setUICallbacks
+    };
 }

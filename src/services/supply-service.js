@@ -110,3 +110,15 @@ export function calculateSupplyCost(days) {
     const waterPrice = goods.water.basePrice * portPrices[gameState.currentPort].water;
     return Math.ceil(required.food * foodPrice + required.water * waterPrice);
 }
+
+// CommonJS support for tests
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        calculateRequiredSupplies,
+        hasEnoughSupplies,
+        consumeSupplies,
+        buySupply,
+        autoSupplyForVoyage,
+        calculateSupplyCost
+    };
+}

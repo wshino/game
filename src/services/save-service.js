@@ -271,3 +271,14 @@ export function clearSave() {
         location.reload();
     }
 }
+
+// CommonJS support for tests
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        saveGame,
+        loadGame,
+        clearSave,
+        restOneDay,
+        setUICallbacks
+    };
+}

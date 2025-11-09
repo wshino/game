@@ -35,3 +35,8 @@ export const gameState = {
 
 // Port inventory state (initialized on game start)
 export const portInventory = {};
+
+// CommonJS support for tests
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { gameState, portInventory };
+}

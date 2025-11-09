@@ -254,3 +254,19 @@ export function getSeaRoute(fromPortId, toPortId) {
     const toPort = ports[toPortId];
     return [[fromPort.x, fromPort.y], [toPort.x, toPort.y]];
 }
+
+// CommonJS support for tests
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        AUTOPILOT_CONFIG,
+        ports,
+        portDistances,
+        seaRoutes,
+        inventorySettings,
+        goods,
+        weatherTypes,
+        portPrices,
+        shipUpgrades,
+        getSeaRoute
+    };
+}

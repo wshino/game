@@ -108,3 +108,17 @@ export function canAffordVoyage(destinationPortId, calculateRequiredSuppliesFunc
         hasEnoughSpace
     };
 }
+
+// CommonJS support for tests
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        getCurrentPortName,
+        getCargoUsed,
+        getCargoSpace,
+        getPrice,
+        calculateProfitForPort,
+        getRecommendedGoods,
+        isProfitable,
+        canAffordVoyage
+    };
+}

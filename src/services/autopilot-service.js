@@ -764,3 +764,21 @@ export function generateAutopilotReport() {
         voyages: gameState.autopilotReport.voyages
     };
 }
+
+// CommonJS support for tests
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        startAutopilot,
+        stopAutopilot,
+        checkAutopilotTimeout,
+        runAutopilotCycle,
+        executeAutopilotDecision,
+        executePurchasePlan,
+        simulateOfflineAutopilot,
+        findBestTrade,
+        calculateOptimalPurchaseForDestination,
+        generateAutopilotReport,
+        toggleAutopilot,
+        setUICallbacks
+    };
+}

@@ -15,3 +15,8 @@ export function addLog(message) {
         gameState.logs.shift();
     }
 }
+
+// CommonJS support for tests
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { addLog };
+}
