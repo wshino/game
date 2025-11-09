@@ -130,3 +130,13 @@ export function toggleAutopilot() {
         startAutopilot(duration);
     }
 }
+
+// CommonJS support for tests
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        showAutopilotReport,
+        closeAutopilotReport,
+        updateAutopilotUI,
+        toggleAutopilot
+    };
+}

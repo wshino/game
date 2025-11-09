@@ -24,13 +24,12 @@ import {
 import {
     startAutopilot,
     stopAutopilot,
-    toggleAutopilot,
     setUICallbacks as setAutopilotUICallbacks
 } from './services/autopilot-service.js';
 
 // UI
 import { updateAll, setUICallbacks as setUIUpdaterCallbacks } from './ui/ui-updater.js';
-import { updateAutopilotUI, showAutopilotReport, closeAutopilotReport } from './ui/autopilot-ui.js';
+import { updateAutopilotUI, showAutopilotReport, closeAutopilotReport, toggleAutopilot } from './ui/autopilot-ui.js';
 
 // Initialize game
 function initGame() {

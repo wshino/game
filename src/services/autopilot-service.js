@@ -778,7 +778,6 @@ if (typeof module !== 'undefined' && module.exports) {
         findBestTrade,
         calculateOptimalPurchaseForDestination,
         generateAutopilotReport,
-        toggleAutopilot,
         setUICallbacks
     };
 }
