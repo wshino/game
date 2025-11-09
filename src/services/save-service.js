@@ -3,6 +3,7 @@ import { ports, shipUpgrades, inventorySettings, goods } from '../core/constants
 import { addLog } from '../utils/logger.js';
 import { initializePortInventory, refreshPortInventory } from './port-service.js';
 import { consumeSupplies } from './supply-service.js';
+import { simulateOfflineAutopilot, runAutopilotCycle } from './autopilot-service.js';
 
 // NOTE: These UI functions need to be imported from game.js or a UI module
 // For now, they are expected to be available in the global scope or passed as parameters
@@ -138,6 +139,9 @@ export function loadGame() {
             // Check for ongoing voyage and update based on real-time
             checkAndUpdateVoyageProgress();
 
+            // Check for ongoing autopilot and resume if needed
+            checkAndUpdateAutopilotProgress();
+
             return true;
         }
     } catch (e) {
@@ -238,6 +242,54 @@ function completeVoyageImmediately(actualDays) {
     saveGame();
     if (updateAll) {
         updateAll();
+    }
+}
+
+// Check if autopilot is active and resume after page reload
+function checkAndUpdateAutopilotProgress() {
+    if (!gameState.autopilotActive || !gameState.autopilotStartTime) {
+        return;
+    }
+
+    const now = Date.now();
+    const elapsedRealTime = now - gameState.autopilotStartTime;
+    const elapsedMinutes = elapsedRealTime / 60000;
+
+    console.log('オートパイロットチェック - 経過時間:', elapsedMinutes, '分 / 設定時間:', gameState.autopilotDurationMinutes, '分');
+
+    // If autopilot duration has not elapsed, simulate offline progress
+    if (elapsedMinutes < gameState.autopilotDurationMinutes) {
+        addLog('🤖 オートパイロット再開中...');
+
+        // Simulate offline autopilot progress
+        const summary = simulateOfflineAutopilot(elapsedMinutes);
+
+        console.log('オフラインシミュレーション結果:', summary);
+
+        // If autopilot is still active after simulation, resume the loop
+        if (gameState.autopilotActive) {
+            addLog(`🤖 オートパイロットを再開しました (残り: ${Math.round(gameState.autopilotDurationMinutes - elapsedMinutes)}分)`);
+            runAutopilotCycle();
+        }
+
+        // Save and update after simulation
+        saveGame();
+        if (updateAll) {
+            updateAll();
+        }
+    } else {
+        // Autopilot duration has elapsed while offline - it should have stopped
+        // The simulateOfflineAutopilot will handle stopping it properly
+        addLog('🤖 オフライン中にオートパイロットが完了しました');
+
+        const summary = simulateOfflineAutopilot(gameState.autopilotDurationMinutes);
+        console.log('オフラインシミュレーション結果:', summary);
+
+        // Save and update
+        saveGame();
+        if (updateAll) {
+            updateAll();
+        }
     }
 }
 
