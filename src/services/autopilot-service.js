@@ -1,5 +1,5 @@
 import { gameState } from '../core/game-state.js';
-import { AUTOPILOT_CONFIG, ports, goods, portPrices, portDistances } from '../core/constants.js';
+import { AUTOPILOT_CONFIG, ports, goods, portPrices, portDistances, inventorySettings } from '../core/constants.js';
 import { getPrice, getCargoSpace } from '../utils/calculations.js';
 import { getPortStock, reducePortStock, refreshPortInventory } from './port-service.js';
 import { calculateRequiredSupplies, hasEnoughSupplies, autoSupplyForVoyage, consumeSupplies, calculateSupplyCost } from './supply-service.js';
@@ -147,6 +147,7 @@ export function executeAutopilotDecision() {
 
     // If we have an active purchase plan, continue executing it
     if (gameState.autopilotPlan && gameState.autopilotPlan.active) {
+        addLog(`🤖 [DEBUG] 購入プランを実行中... (目的地: ${ports[gameState.autopilotPlan.destinationPort].name})`);
         actionTaken = executePurchasePlan();
         return actionTaken;
     }
@@ -154,11 +155,25 @@ export function executeAutopilotDecision() {
     // Find the most profitable trade route
     const bestTrade = findBestTrade();
 
+    if (!bestTrade) {
+        addLog(`🤖 [DEBUG] 利益の出る取引ルートが見つかりませんでした`);
+    } else {
+        addLog(`🤖 [DEBUG] 最適な取引: ${bestTrade.action}${bestTrade.destinationPort ? ' → ' + ports[bestTrade.destinationPort].name : ''}`);
+    }
+
     if (bestTrade) {
         // If we have goods to sell, sell them first
         const hasGoodsToSell = Object.keys(gameState.inventory).some(goodId => {
             return gameState.inventory[goodId] > 0 && goodId !== 'food' && goodId !== 'water';
         });
+
+        if (hasGoodsToSell) {
+            const goodsList = Object.keys(gameState.inventory)
+                .filter(goodId => gameState.inventory[goodId] > 0 && goodId !== 'food' && goodId !== 'water')
+                .map(goodId => `${goods[goodId].name}:${gameState.inventory[goodId]}`)
+                .join(', ');
+            addLog(`🤖 [DEBUG] 売却可能な商品: ${goodsList}`);
+        }
 
         if (hasGoodsToSell && bestTrade.action === 'sell') {
             // Sell all profitable goods at current port
@@ -223,6 +238,8 @@ export function executeAutopilotDecision() {
     // If no action was taken (stuck due to lack of supplies or no profitable trades),
     // advance time by 1 day to allow inventory to replenish
     if (!actionTaken) {
+        const reason = !bestTrade ? '利益の出る取引がない' : '条件を満たせない';
+        addLog(`🤖 [DEBUG] アクション未実行 (理由: ${reason}、資金: ${gameState.gold}G)`);
         gameState.gameTime += 1;
         refreshPortInventory(1);
         addLog(`⏰ 翌日になりました (${gameState.gameTime}日目) - 在庫が補充されました`);
@@ -237,6 +254,13 @@ export function executeAutopilotDecision() {
 export function executePurchasePlan() {
     const plan = gameState.autopilotPlan;
     let actionTaken = false;
+
+    // Check if we're already at the destination - if so, clear plan and sell
+    if (plan.destinationPort === gameState.currentPort) {
+        addLog(`🤖 目的地 ${ports[gameState.currentPort].name} に到着済み。購入プランをキャンセルします`);
+        gameState.autopilotPlan = null;
+        return false; // Let next cycle handle selling
+    }
 
     // Step 1: Buy water and food first
     if (!plan.suppliesReady) {
@@ -330,14 +354,24 @@ export function executePurchasePlan() {
         const canBuyNow = Math.min(maxByMoney, maxByCargo, maxByStock, idealQuantity);
 
         // Check if we should wait for more stock
+        const portSize = ports[gameState.currentPort].size;
+        const maxPossibleStock = inventorySettings[portSize].maxStock;
         const stockIsLimiting = maxByStock < idealQuantity;
         const stockTooLow = maxByStock < idealQuantity * AUTOPILOT_CONFIG.STOCK_WAIT_THRESHOLD;
 
-        if (stockIsLimiting && stockTooLow && canBuyNow < idealQuantity && cargoSpace > AUTOPILOT_CONFIG.MINIMUM_CARGO_SPACE) {
-            // Wait for inventory to replenish
-            addLog(`⏰ ${goods[goodId].name}の在庫回復を待機中... (現在: ${maxByStock}/${idealQuantity})`);
+        // Only wait if stock can actually recover to the desired level
+        const canRecoverToDesiredLevel = idealQuantity <= maxPossibleStock;
+
+        if (stockIsLimiting && stockTooLow && canBuyNow < idealQuantity && cargoSpace > AUTOPILOT_CONFIG.MINIMUM_CARGO_SPACE && canRecoverToDesiredLevel) {
+            // Wait for inventory to replenish (but only if recovery is possible)
+            addLog(`⏰ ${goods[goodId].name}の在庫回復を待機中... (現在: ${maxByStock}/${idealQuantity}, 最大: ${maxPossibleStock})`);
             actionTaken = false;
             return actionTaken;
+        }
+
+        // If we can't wait or recovery isn't possible, proceed with what we can buy
+        if (!canRecoverToDesiredLevel && canBuyNow < idealQuantity) {
+            addLog(`ℹ️ ${goods[goodId].name}: 港の最大在庫(${maxPossibleStock})が必要量(${idealQuantity})より少ないため、現在の在庫分(${canBuyNow})のみ購入します`);
         }
 
         if (canBuyNow >= AUTOPILOT_CONFIG.MINIMUM_PURCHASE_MULTIPLIER) {
