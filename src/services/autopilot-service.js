@@ -452,6 +452,35 @@ export function executePurchasePlan() {
     return actionTaken;
 }
 
+// Get remaining autopilot time
+export function getRemainingAutopilotTime() {
+    if (!gameState.autopilotActive) {
+        return { remainingMinutes: 0, remainingGameDays: 0 };
+    }
+
+    const elapsed = Date.now() - gameState.autopilotStartTime;
+    const elapsedMinutes = elapsed / 60000;
+    const remainingMinutes = Math.max(0, gameState.autopilotDurationMinutes - elapsedMinutes);
+
+    // リアル時間をゲーム日数に変換
+    // 仮定: 平均的な取引サイクル = 15秒/日（航海のリアルタイム進行考慮）
+    const REAL_TIME_PER_GAME_DAY = 15; // 秒
+    const remainingGameDays = (remainingMinutes * 60) / REAL_TIME_PER_GAME_DAY;
+
+    return {
+        remainingMinutes,
+        remainingGameDays: Math.max(0, remainingGameDays)
+    };
+}
+
+// Calculate time efficiency (profit per game day)
+const TRADE_TIME_OVERHEAD = 2; // 取引処理にかかる時間（ゲーム日数）
+
+export function calculateTimeEfficiency(totalProfit, estimatedDays) {
+    const totalTime = estimatedDays + TRADE_TIME_OVERHEAD;
+    return totalProfit / totalTime;
+}
+
 // Simulate offline autopilot progress
 export function simulateOfflineAutopilot(offlineMinutes) {
     const summary = {
@@ -624,8 +653,16 @@ export function findBestTrade() {
     // No goods in inventory - find the most profitable trade route
     // NEW STRATEGY: Calculate total profit for each destination (not profit per unit)
     // Consider multiple goods to maximize total profit
+    // ENHANCED: Consider time efficiency for maximum profit within duration
 
-    let bestTotalProfit = 0;
+    // Get remaining time
+    const { remainingGameDays } = getRemainingAutopilotTime();
+    const BUFFER_DAYS = 5; // 安全マージン
+
+    // Determine strategy based on autopilot duration
+    const isShortTerm = gameState.autopilotActive && gameState.autopilotDurationMinutes < 120; // 2時間未満
+
+    let bestScore = 0;
     let bestDestPort = null;
     let bestPurchasePlan = null;
 
@@ -636,8 +673,32 @@ export function findBestTrade() {
         // Calculate optimal purchase plan for this destination
         const plan = calculateOptimalPurchaseForDestination(destPortId);
 
-        if (plan && plan.totalProfit > bestTotalProfit && plan.totalProfit > AUTOPILOT_CONFIG.MINIMUM_PROFIT_THRESHOLD) {
-            bestTotalProfit = plan.totalProfit;
+        if (!plan || plan.totalProfit <= AUTOPILOT_CONFIG.MINIMUM_PROFIT_THRESHOLD) {
+            continue;
+        }
+
+        // Check if we have enough time to complete this route
+        if (gameState.autopilotActive && remainingGameDays > 0) {
+            if (plan.estimatedDays + BUFFER_DAYS > remainingGameDays) {
+                addLog(`🤖 [DEBUG] ${ports[destPortId].name}へのルートは時間不足（必要: ${plan.estimatedDays}日、残り: ${Math.floor(remainingGameDays)}日）`);
+                continue; // 時間内に完了できない
+            }
+        }
+
+        // Calculate score based on strategy
+        let score;
+        if (isShortTerm) {
+            // 短期: 時間効率を優先
+            score = plan.timeEfficiency;
+            addLog(`🤖 [DEBUG] ${ports[destPortId].name}: 時間効率=${Math.floor(plan.timeEfficiency)} G/日, 利益=${Math.floor(plan.totalProfit)}G, 日数=${plan.estimatedDays}日`);
+        } else {
+            // 長期: 総利益と時間効率のバランス
+            score = plan.totalProfit * 0.7 + plan.timeEfficiency * 100;
+            addLog(`🤖 [DEBUG] ${ports[destPortId].name}: スコア=${Math.floor(score)}, 利益=${Math.floor(plan.totalProfit)}G, 効率=${Math.floor(plan.timeEfficiency)} G/日`);
+        }
+
+        if (score > bestScore) {
+            bestScore = score;
             bestDestPort = destPortId;
             bestPurchasePlan = plan;
         }
@@ -647,6 +708,11 @@ export function findBestTrade() {
     if (bestDestPort && bestPurchasePlan) {
         const cargoSpace = getCargoSpace();
         if (cargoSpace >= AUTOPILOT_CONFIG.MINIMUM_CARGO_SPACE) {
+            if (isShortTerm) {
+                addLog(`🤖 [最適] ${ports[bestDestPort].name}を選択（時間効率: ${Math.floor(bestPurchasePlan.timeEfficiency)} G/日）`);
+            } else {
+                addLog(`🤖 [最適] ${ports[bestDestPort].name}を選択（総利益: ${Math.floor(bestPurchasePlan.totalProfit)}G、時間効率: ${Math.floor(bestPurchasePlan.timeEfficiency)} G/日）`);
+            }
             return {
                 action: 'prepare_voyage',
                 destinationPort: bestDestPort,
@@ -768,8 +834,13 @@ export function calculateOptimalPurchaseForDestination(destPortId) {
         return null;
     }
 
+    // 8. Calculate time efficiency
+    const timeEfficiency = calculateTimeEfficiency(totalProfit, estimatedDays);
+
     return {
         totalProfit,
+        estimatedDays,
+        timeEfficiency,
         goodsToBuy,
         supplyCost: actualSupplyCost,
         waterNeeded,
@@ -824,6 +895,8 @@ if (typeof module !== 'undefined' && module.exports) {
         findBestTrade,
         calculateOptimalPurchaseForDestination,
         generateAutopilotReport,
-        setUICallbacks
+        setUICallbacks,
+        getRemainingAutopilotTime,
+        calculateTimeEfficiency
     };
 }
