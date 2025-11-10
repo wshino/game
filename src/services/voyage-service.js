@@ -533,10 +533,21 @@ export function simulateVoyage(destinationPortId, estimatedDays) {
             }
         }
 
-        // Update UI
-        document.getElementById('voyage-days-elapsed').textContent = daysElapsed;
-        document.getElementById('voyage-weather').textContent = `${currentWeather.emoji} ${currentWeather.name}`;
-        document.getElementById('voyage-speed').textContent = `${Math.round(currentWeather.speedMultiplier * 100)}%`;
+        // Update UI (only if elements exist - may not exist if browser is closed)
+        const daysElapsedElement = document.getElementById('voyage-days-elapsed');
+        if (daysElapsedElement) {
+            daysElapsedElement.textContent = daysElapsed;
+        }
+
+        const voyageWeatherElement = document.getElementById('voyage-weather');
+        if (voyageWeatherElement) {
+            voyageWeatherElement.textContent = `${currentWeather.emoji} ${currentWeather.name}`;
+        }
+
+        const voyageSpeedElement = document.getElementById('voyage-speed');
+        if (voyageSpeedElement) {
+            voyageSpeedElement.textContent = `${Math.round(currentWeather.speedMultiplier * 100)}%`;
+        }
 
         // Update weather effect
         const weatherEffect = document.getElementById('voyage-weather-effect');
@@ -554,12 +565,13 @@ export function simulateVoyage(destinationPortId, estimatedDays) {
             return; // Stop updating
         }
 
-        // Continue updating
-        requestAnimationFrame(updateVoyageUI);
+        // Continue updating with setTimeout instead of requestAnimationFrame
+        // This ensures the voyage continues even when browser is closed/backgrounded
+        setTimeout(updateVoyageUI, 1000);
     };
 
-    // Start updating UI
-    requestAnimationFrame(updateVoyageUI);
+    // Start updating UI with setTimeout
+    setTimeout(updateVoyageUI, 1000);
 }
 
 // Complete voyage and update game state
