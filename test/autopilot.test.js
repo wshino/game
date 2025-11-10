@@ -6,13 +6,20 @@ global.window = {
     addEventListener: () => {}
 };
 
+// Create a mock element factory
+const createMockElement = () => ({
+    innerHTML: '',
+    remove: () => {},
+    appendChild: () => {},
+    style: {}
+});
+
 global.document = {
-    getElementById: () => null,
-    createElement: () => ({ 
-        innerHTML: '',
-        remove: () => {},
-        appendChild: () => {}
-    }),
+    getElementById: (id) => {
+        // Return a mock element for any ID, especially 'log'
+        return createMockElement();
+    },
+    createElement: () => createMockElement(),
     body: {
         appendChild: () => {}
     }
