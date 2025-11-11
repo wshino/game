@@ -266,6 +266,11 @@ function checkAndUpdateAutopilotProgress() {
 
         console.log('オフラインシミュレーション結果:', summary);
 
+        // Show offline progress details
+        const profit = summary.goldEnd - summary.goldStart;
+        const profitSign = profit >= 0 ? '+' : '';
+        addLog(`📊 オフライン中の進捗: 取引${summary.tradesCompleted}回、航海${summary.voyagesCompleted}回、利益${profitSign}${profit}G`);
+
         // If autopilot is still active after simulation, resume the loop
         if (gameState.autopilotActive) {
             addLog(`🤖 オートパイロットを再開しました (残り: ${Math.round(gameState.autopilotDurationMinutes - elapsedMinutes)}分)`);
@@ -284,6 +289,11 @@ function checkAndUpdateAutopilotProgress() {
 
         const summary = simulateOfflineAutopilot(gameState.autopilotDurationMinutes);
         console.log('オフラインシミュレーション結果:', summary);
+
+        // Show offline progress details
+        const profit = summary.goldEnd - summary.goldStart;
+        const profitSign = profit >= 0 ? '+' : '';
+        addLog(`📊 オフライン中の進捗: 取引${summary.tradesCompleted}回、航海${summary.voyagesCompleted}回、利益${profitSign}${profit}G`);
 
         // Save and update
         saveGame();
