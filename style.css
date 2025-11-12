@@ -411,6 +411,8 @@ header h1 {
     padding: 40px;
     max-width: 600px;
     width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
     box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
     color: white;
 }
