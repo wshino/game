@@ -3,7 +3,7 @@ import { ports, shipUpgrades, inventorySettings, goods } from '../core/constants
 import { addLog } from '../utils/logger.js';
 import { initializePortInventory, refreshPortInventory } from './port-service.js';
 import { consumeSupplies } from './supply-service.js';
-import { simulateOfflineAutopilot, runAutopilotCycle } from './autopilot-service.js';
+import { simulateOfflineAutopilot, runAutopilotCycle, startAutopilotTimer } from './autopilot-service.js';
 
 // NOTE: These UI functions need to be imported from game.js or a UI module
 // For now, they are expected to be available in the global scope or passed as parameters
@@ -274,6 +274,7 @@ function checkAndUpdateAutopilotProgress() {
         // If autopilot is still active after simulation, resume the loop
         if (gameState.autopilotActive) {
             addLog(`🤖 オートパイロットを再開しました (残り: ${Math.round(gameState.autopilotDurationMinutes - elapsedMinutes)}分)`);
+            startAutopilotTimer();
             runAutopilotCycle();
         }
 
