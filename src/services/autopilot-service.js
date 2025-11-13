@@ -11,6 +11,9 @@ let updateAll;
 let saveGame;
 let showAutopilotReport;
 
+// Timer for periodic UI updates
+let autopilotTimerId = null;
+
 // Set UI callback functions (call this from main game initialization)
 export function setUICallbacks(updateAllFn, saveGameFn, showAutopilotReportFn) {
     updateAll = updateAllFn;
@@ -49,6 +52,9 @@ export function startAutopilot(durationHours) {
 
     saveGame();
     updateAll();
+
+    // Start periodic timer update
+    startAutopilotTimer();
 
     // Start autopilot loop
     runAutopilotCycle();
@@ -90,6 +96,10 @@ export function stopAutopilot() {
     }
 
     gameState.autopilotActive = false;
+
+    // Stop periodic timer update
+    stopAutopilotTimer();
+
     const report = generateAutopilotReport();
     showAutopilotReport(report);
 
@@ -112,6 +122,42 @@ export function checkAutopilotTimeout() {
     }
 
     return false;
+}
+
+// Start periodic timer updates
+export function startAutopilotTimer() {
+    // Clear any existing timer
+    stopAutopilotTimer();
+
+    // Update timer display every second
+    const updateTimer = () => {
+        if (!gameState.autopilotActive) {
+            stopAutopilotTimer();
+            return;
+        }
+
+        // Check if autopilot should stop
+        if (checkAutopilotTimeout()) {
+            return;
+        }
+
+        // Update UI
+        updateAll();
+
+        // Schedule next update
+        autopilotTimerId = setTimeout(updateTimer, 1000);
+    };
+
+    // Start the timer
+    autopilotTimerId = setTimeout(updateTimer, 1000);
+}
+
+// Stop periodic timer updates
+export function stopAutopilotTimer() {
+    if (autopilotTimerId !== null) {
+        clearTimeout(autopilotTimerId);
+        autopilotTimerId = null;
+    }
 }
 
 // Run a single autopilot cycle
@@ -897,6 +943,8 @@ if (typeof module !== 'undefined' && module.exports) {
         generateAutopilotReport,
         setUICallbacks,
         getRemainingAutopilotTime,
-        calculateTimeEfficiency
+        calculateTimeEfficiency,
+        startAutopilotTimer,
+        stopAutopilotTimer
     };
 }
