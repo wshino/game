@@ -109,20 +109,36 @@ export function updateAutopilotUI() {
 
             if (hours > 0) {
                 timerSpan.textContent = `⏱️ 残り: ${hours}時間${minutes}分${seconds}秒`;
+                timerSpan.style.color = '';
+                timerSpan.style.fontWeight = '';
             } else if (minutes > 0) {
                 timerSpan.textContent = `⏱️ 残り: ${minutes}分${seconds}秒`;
-            } else {
+                timerSpan.style.color = '';
+                timerSpan.style.fontWeight = '';
+            } else if (seconds > 10) {
                 timerSpan.textContent = `⏱️ 残り: ${seconds}秒`;
+                timerSpan.style.color = '';
+                timerSpan.style.fontWeight = '';
+            } else {
+                // Last 10 seconds - make it more noticeable
+                timerSpan.textContent = `⏱️ まもなく自動停止... ${seconds}秒`;
+                timerSpan.style.color = '#ff9800';
+                timerSpan.style.fontWeight = 'bold';
             }
         } else {
-            // Time is up - this should trigger stopAutopilot very soon
-            timerSpan.textContent = '⏱️ まもなく完了...';
+            // Time is up - autopilot will auto-stop within 1 second
+            timerSpan.textContent = '⏱️ 自動停止中...';
+            timerSpan.style.color = '#ff9800';
+            timerSpan.style.fontWeight = 'bold';
         }
     } else {
         toggleBtn.textContent = '🤖 開始';
         toggleBtn.className = 'btn btn-primary';
         durationInput.disabled = false;
         timerSpan.textContent = '';
+        // Reset timer style
+        timerSpan.style.color = '';
+        timerSpan.style.fontWeight = '';
     }
 }
 

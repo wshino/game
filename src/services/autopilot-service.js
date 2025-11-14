@@ -61,7 +61,7 @@ export function startAutopilot(durationHours) {
 }
 
 // Stop autopilot mode
-export function stopAutopilot() {
+export function stopAutopilot(isAutoStop = false) {
     if (!gameState.autopilotActive) {
         return;
     }
@@ -100,6 +100,13 @@ export function stopAutopilot() {
     // Stop periodic timer update
     stopAutopilotTimer();
 
+    // Log appropriate message
+    if (isAutoStop) {
+        addLog(`✅ オートパイロットが時間切れで自動停止しました`);
+    } else {
+        addLog(`⏹️ オートパイロットを手動停止しました`);
+    }
+
     const report = generateAutopilotReport();
     showAutopilotReport(report);
 
@@ -117,7 +124,8 @@ export function checkAutopilotTimeout() {
     const elapsedMinutes = elapsed / 60000;
 
     if (elapsedMinutes >= gameState.autopilotDurationMinutes) {
-        stopAutopilot();
+        addLog(`⏰ オートパイロット実行時間が終了しました`);
+        stopAutopilot(true); // Auto-stop
         return true;
     }
 
