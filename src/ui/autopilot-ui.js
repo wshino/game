@@ -98,18 +98,24 @@ export function updateAutopilotUI() {
         durationInput.disabled = true;
 
         const elapsed = Date.now() - gameState.autopilotStartTime;
-        const elapsedMinutes = Math.floor(elapsed / 60000);
+        const elapsedMinutes = elapsed / 60000;
         const remainingMinutes = gameState.autopilotDurationMinutes - elapsedMinutes;
 
         if (remainingMinutes > 0) {
-            const hours = Math.floor(remainingMinutes / 60);
-            const minutes = remainingMinutes % 60;
+            const displayMinutes = Math.floor(remainingMinutes);
+            const hours = Math.floor(displayMinutes / 60);
+            const minutes = displayMinutes % 60;
+            const seconds = Math.floor((remainingMinutes - displayMinutes) * 60);
+
             if (hours > 0) {
-                timerSpan.textContent = `⏱️ 残り: ${hours}時間${minutes}分`;
+                timerSpan.textContent = `⏱️ 残り: ${hours}時間${minutes}分${seconds}秒`;
+            } else if (minutes > 0) {
+                timerSpan.textContent = `⏱️ 残り: ${minutes}分${seconds}秒`;
             } else {
-                timerSpan.textContent = `⏱️ 残り: ${minutes}分`;
+                timerSpan.textContent = `⏱️ 残り: ${seconds}秒`;
             }
         } else {
+            // Time is up - this should trigger stopAutopilot very soon
             timerSpan.textContent = '⏱️ まもなく完了...';
         }
     } else {
