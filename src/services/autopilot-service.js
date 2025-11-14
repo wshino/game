@@ -131,13 +131,17 @@ export function startAutopilotTimer() {
 
     // Update timer display every second
     const updateTimer = () => {
-        if (!gameState.autopilotActive) {
-            stopAutopilotTimer();
+        // Check if autopilot should stop FIRST (before checking autopilotActive)
+        // This ensures that timeout is checked even if the flag hasn't been updated yet
+        if (gameState.autopilotActive && checkAutopilotTimeout()) {
+            // stopAutopilot() was called, which sets autopilotActive to false
+            // and calls stopAutopilotTimer(), so we don't need to schedule another update
             return;
         }
 
-        // Check if autopilot should stop
-        if (checkAutopilotTimeout()) {
+        // If autopilot is no longer active, stop the timer
+        if (!gameState.autopilotActive) {
+            stopAutopilotTimer();
             return;
         }
 
