@@ -1,5 +1,5 @@
-const { test } = require('node:test');
-const assert = require('node:assert');
+import { test } from 'node:test';
+import assert from 'node:assert';
 
 // Mock localStorage and DOM APIs
 global.localStorage = {
@@ -55,7 +55,7 @@ global.window = {
 global.localStorage.clear();
 
 // Import game module
-const game = require('../game.js');
+import * as game from '../game.js';
 
 test('東インド会社船でセーブ・ロードしても船が変わらないこと', () => {
     // Clear any existing save data

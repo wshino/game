@@ -1,5 +1,5 @@
-const assert = require('node:assert');
-const { describe, it, beforeEach } = require('node:test');
+import assert from 'node:assert';
+import { describe, it, beforeEach } from 'node:test';
 
 // Mock DOM and window environment
 global.window = {
@@ -32,7 +32,7 @@ global.localStorage = {
 };
 
 // Load game module
-const game = require('../game.js');
+import * as game from '../game.js';
 
 describe('Autopilot functionality', () => {
     beforeEach(() => {

@@ -1,5 +1,5 @@
-const { test } = require('node:test');
-const assert = require('node:assert');
+import { test } from 'node:test';
+import assert from 'node:assert';
 
 // Mock localStorage and DOM APIs
 global.localStorage = {
@@ -52,7 +52,7 @@ global.window = {
 };
 
 // Import game module
-const game = require('../game.js');
+import * as game from '../game.js';
 
 test('calculateRequiredSupplies - 必要な物資を正しく計算する', () => {
     // Reset game state
