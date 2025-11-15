@@ -1,8 +1,8 @@
-// CommonJS wrapper for tests
-// This file provides backward compatibility for test files
+// ESM wrapper for tests
+// This file provides exports for test files
 
-const { gameState, portInventory } = require('./src/core/game-state.js');
-const {
+export { gameState, portInventory } from './src/core/game-state.js';
+export {
     ports,
     goods,
     portDistances,
@@ -10,25 +10,25 @@ const {
     inventorySettings,
     shipUpgrades,
     getSeaRoute
-} = require('./src/core/constants.js');
+} from './src/core/constants.js';
 
-const {
+export {
     initializePortInventory,
     refreshPortInventory,
     getPortStock,
     reducePortStock
-} = require('./src/services/port-service.js');
+} from './src/services/port-service.js';
 
-const {
+export {
     calculateRequiredSupplies,
     hasEnoughSupplies,
     consumeSupplies,
     buySupply,
     autoSupplyForVoyage,
     calculateSupplyCost
-} = require('./src/services/supply-service.js');
+} from './src/services/supply-service.js';
 
-const {
+export {
     getCurrentPortName,
     getCargoUsed,
     getCargoSpace,
@@ -37,55 +37,19 @@ const {
     getRecommendedGoods,
     isProfitable,
     canAffordVoyage
-} = require('./src/utils/calculations.js');
+} from './src/utils/calculations.js';
 
-const {
+export {
     saveGame,
     loadGame
-} = require('./src/services/save-service.js');
+} from './src/services/save-service.js';
 
-const {
+export {
     initializeVoyageMap,
     updateShipPosition,
     selectDestination
-} = require('./src/services/voyage-service.js');
+} from './src/services/voyage-service.js';
 
-const {
+export {
     findBestTrade
-} = require('./src/services/autopilot-service.js');
-
-module.exports = {
-    gameState,
-    ports,
-    goods,
-    portInventory,
-    portDistances,
-    seaRoutes,
-    inventorySettings,
-    shipUpgrades,
-    calculateRequiredSupplies,
-    hasEnoughSupplies,
-    consumeSupplies,
-    buySupply,
-    autoSupplyForVoyage,
-    getPortStock,
-    reducePortStock,
-    initializePortInventory,
-    refreshPortInventory,
-    getCargoSpace,
-    getCargoUsed,
-    getPrice,
-    saveGame,
-    loadGame,
-    getSeaRoute,
-    initializeVoyageMap,
-    updateShipPosition,
-    calculateSupplyCost,
-    getCurrentPortName,
-    calculateProfitForPort,
-    getRecommendedGoods,
-    isProfitable,
-    canAffordVoyage,
-    selectDestination,
-    findBestTrade
-};
+} from './src/services/autopilot-service.js';
