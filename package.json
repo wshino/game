@@ -2,10 +2,19 @@
   "name": "daikoukai-jidai-game",
   "version": "1.0.0",
   "description": "大航海時代 - 冒険と貿易の旅",
+  "type": "module",
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "example:simple": "node examples/simple-structured-output.js",
+    "example:game": "node examples/structured-outputs-example.js"
   },
   "keywords": ["game", "trading", "adventure"],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5"
+  }
 }

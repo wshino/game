@@ -76,24 +76,27 @@ GitHub ActionsのWorkflowsタブから "Deploy to GitHub Pages" を手動実行�
 
 このプロジェクトには、Claude API の Structured Outputs 機能の実装例とガイドが含まれています。
 
+### クイックスタート
+
+```bash
+# 1. 依存関係のインストール
+npm install
+
+# 2. APIキーの設定
+cp .env.example .env
+# .env ファイルを編集して ANTHROPIC_API_KEY を設定
+
+# 3. サンプルを実行
+npm run example:simple    # シンプルな例
+npm run example:game      # ゲーム関連の例
+```
+
 ### ドキュメント
 
+- **[セットアップガイド](docs/SETUP.md)** - 導入手順と使い方の選択肢
 - **[Structured Outputs ガイド](docs/STRUCTURED_OUTPUTS_GUIDE.md)** - 詳細な使い方と説明
 - **[実装例](examples/structured-outputs-example.js)** - ゲームに関連した実用例
 - **[シンプルな例](examples/simple-structured-output.js)** - 基本的な使い方のデモ
-
-### 使い方
-
-```bash
-# 依存関係のインストール
-npm install @anthropic-ai/sdk
-
-# APIキーの設定
-export ANTHROPIC_API_KEY='your-api-key'
-
-# シンプルな例を実行
-node examples/simple-structured-output.js
-```
 
 Structured Outputs を使うと、AI による取引アドバイス、航海レポート生成、市場分析などを型安全に実装できます。
 
