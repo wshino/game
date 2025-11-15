@@ -52,7 +52,7 @@ global.window = {
 };
 
 // Import game module
-const game = require('../game.js');
+const game = require('../game.cjs');
 
 test('calculateRequiredSupplies - 必要な物資を正しく計算する', () => {
     // Reset game state

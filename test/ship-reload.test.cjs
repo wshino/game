@@ -55,7 +55,7 @@ global.window = {
 global.localStorage.clear();
 
 // Import game module
-const game = require('../game.js');
+const game = require('../game.cjs');
 
 test('東インド会社船でセーブ・ロードしても船が変わらないこと', () => {
     // Clear any existing save data

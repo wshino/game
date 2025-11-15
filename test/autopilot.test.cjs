@@ -32,7 +32,7 @@ global.localStorage = {
 };
 
 // Load game module
-const game = require('../game.js');
+const game = require('../game.cjs');
 
 describe('Autopilot functionality', () => {
     beforeEach(() => {

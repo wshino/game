@@ -4,7 +4,7 @@
   "description": "大航海時代 - 冒険と貿易の旅",
   "type": "module",
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "node --test test/*.test.cjs",
     "example:simple": "node examples/simple-structured-output.js",
     "example:game": "node examples/structured-outputs-example.js"
   },

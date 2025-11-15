@@ -68,7 +68,7 @@ global.window = {
 global.localStorage.clear();
 
 // Import game module
-const game = require('../game.js');
+const game = require('../game.cjs');
 
 test('港に正しい座標が定義されている', () => {
     const ports = game.ports;
