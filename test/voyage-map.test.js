@@ -1,5 +1,5 @@
-const { test } = require('node:test');
-const assert = require('node:assert');
+import { test } from 'node:test';
+import assert from 'node:assert';
 
 // Mock DOM APIs for SVG
 const createMockSVGElement = (tagName) => {
@@ -68,7 +68,7 @@ global.window = {
 global.localStorage.clear();
 
 // Import game module
-const game = require('../game.js');
+import * as game from '../game.js';
 
 test('港に正しい座標が定義されている', () => {
     const ports = game.ports;
