@@ -72,6 +72,31 @@ GitHub ActionsのWorkflowsタブから "Deploy to GitHub Pages" を手動実行�
 - CSS アニメーション
 - ローカルストレージ非使用（リロードでリセット）
 
+## 🤖 Claude API Structured Outputs
+
+このプロジェクトには、Claude API の Structured Outputs 機能の実装例とガイドが含まれています。
+
+### ドキュメント
+
+- **[Structured Outputs ガイド](docs/STRUCTURED_OUTPUTS_GUIDE.md)** - 詳細な使い方と説明
+- **[実装例](examples/structured-outputs-example.js)** - ゲームに関連した実用例
+- **[シンプルな例](examples/simple-structured-output.js)** - 基本的な使い方のデモ
+
+### 使い方
+
+```bash
+# 依存関係のインストール
+npm install @anthropic-ai/sdk
+
+# APIキーの設定
+export ANTHROPIC_API_KEY='your-api-key'
+
+# シンプルな例を実行
+node examples/simple-structured-output.js
+```
+
+Structured Outputs を使うと、AI による取引アドバイス、航海レポート生成、市場分析などを型安全に実装できます。
+
 ## ゲームのコツ
 
 1. **価格差を見つけよう**: 各港で商品の価格が大きく異なります
