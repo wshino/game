@@ -3,7 +3,14 @@ import { ports, shipUpgrades, inventorySettings, goods } from '../core/constants
 import { addLog } from '../utils/logger.js';
 import { initializePortInventory, refreshPortInventory } from './port-service.js';
 import { consumeSupplies } from './supply-service.js';
-import { simulateOfflineAutopilot, runAutopilotCycle, startAutopilotTimer } from './autopilot-service.js';
+import {
+    simulateOfflineAutopilot,
+    runAutopilotCycle,
+    startAutopilotTimer,
+    checkAutopilotTimeout,
+    getRemainingAutopilotTime,
+    executeAutopilotDecision
+} from './autopilot-service.js';
 
 // NOTE: These UI functions need to be imported from game.js or a UI module
 // For now, they are expected to be available in the global scope or passed as parameters
@@ -261,8 +268,9 @@ function checkAndUpdateAutopilotProgress() {
     if (elapsedMinutes < gameState.autopilotDurationMinutes) {
         addLog('🤖 オートパイロット再開中...');
 
-        // Simulate offline autopilot progress
-        const summary = simulateOfflineAutopilot(elapsedMinutes);
+        // Simulate offline autopilot progress with dependencies
+        const executorWithDeps = () => executeAutopilotDecision(getRemainingAutopilotTime);
+        const summary = simulateOfflineAutopilot(elapsedMinutes, checkAutopilotTimeout, executorWithDeps);
 
         console.log('オフラインシミュレーション結果:', summary);
 
@@ -275,7 +283,7 @@ function checkAndUpdateAutopilotProgress() {
         if (gameState.autopilotActive) {
             addLog(`🤖 オートパイロットを再開しました (残り: ${Math.round(gameState.autopilotDurationMinutes - elapsedMinutes)}分)`);
             startAutopilotTimer();
-            runAutopilotCycle();
+            runAutopilotCycle(checkAutopilotTimeout, executorWithDeps);
         }
 
         // Save and update after simulation
@@ -288,7 +296,8 @@ function checkAndUpdateAutopilotProgress() {
         // The simulateOfflineAutopilot will handle stopping it properly
         addLog('🤖 オフライン中にオートパイロットが完了しました');
 
-        const summary = simulateOfflineAutopilot(gameState.autopilotDurationMinutes);
+        const executorWithDeps = () => executeAutopilotDecision(getRemainingAutopilotTime);
+        const summary = simulateOfflineAutopilot(gameState.autopilotDurationMinutes, checkAutopilotTimeout, executorWithDeps);
         console.log('オフラインシミュレーション結果:', summary);
 
         // Show offline progress details

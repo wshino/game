@@ -83,9 +83,11 @@ describe('Autopilot functionality', () => {
         game.gameState.gold = 10;
         game.gameState.currentPort = 'lisbon';
         game.gameState.inventory = {};
-        
-        const trade = game.findBestTrade();
-        
+
+        // Mock getRemainingAutopilotTime function
+        const mockGetRemainingTime = () => ({ remainingMinutes: 60, remainingGameDays: 100 });
+        const trade = game.findBestTrade(mockGetRemainingTime);
+
         // Should return null (no trade) instead of random travel
         assert.strictEqual(trade, null);
     });
@@ -102,7 +104,9 @@ describe('Autopilot functionality', () => {
             crew: 20
         };
 
-        const trade = game.findBestTrade();
+        // Mock getRemainingAutopilotTime function
+        const mockGetRemainingTime = () => ({ remainingMinutes: 60, remainingGameDays: 100 });
+        const trade = game.findBestTrade(mockGetRemainingTime);
 
         // Should return a trade decision (prepare_voyage, buy, sell, or travel)
         // The key is that it should only return a trade if it's profitable after costs
