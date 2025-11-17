@@ -1,7 +1,7 @@
 import { gameState } from '../core/game-state.js';
 import { ports } from '../core/constants.js';
 import { addLog } from '../utils/logger.js';
-import { startAutopilot, stopAutopilot } from '../services/autopilot-service.js';
+import { startAutopilot, stopAutopilot, checkAutopilotTimeout } from '../services/autopilot-service.js';
 
 // Show autopilot report modal
 export function showAutopilotReport(report) {
@@ -126,10 +126,18 @@ export function updateAutopilotUI() {
                 timerSpan.style.fontWeight = 'bold';
             }
         } else {
-            // Time is up - autopilot will auto-stop within 1 second
+            // Time is up - force check and stop immediately
             timerSpan.textContent = '⏱️ 自動停止中...';
             timerSpan.style.color = '#ff9800';
             timerSpan.style.fontWeight = 'bold';
+
+            // Force immediate timeout check to ensure autopilot stops
+            // This prevents the case where UI shows "stopping" but never actually stops
+            setTimeout(() => {
+                if (gameState.autopilotActive) {
+                    checkAutopilotTimeout();
+                }
+            }, 0);
         }
     } else {
         toggleBtn.textContent = '🤖 開始';
