@@ -156,6 +156,13 @@ export function startAutopilotTimer() {
         // Update UI
         updateAll();
 
+        // Check timeout again after UI update
+        // This ensures immediate response when time runs out during the UI update
+        if (gameState.autopilotActive && checkAutopilotTimeout()) {
+            // stopAutopilot() was called, timer is already stopped
+            return;
+        }
+
         // Schedule next update
         autopilotTimerId = setTimeout(updateTimer, 1000);
     };
