@@ -156,6 +156,13 @@ export function startAutopilotTimer() {
         // Update UI
         updateAll();
 
+        // Check timeout again after UI update
+        // This ensures immediate response when time runs out during the UI update
+        if (gameState.autopilotActive && checkAutopilotTimeout()) {
+            // stopAutopilot() was called, timer is already stopped
+            return;
+        }
+
         // Schedule next update
         autopilotTimerId = setTimeout(updateTimer, 1000);
     };
@@ -183,9 +190,13 @@ export function runAutopilotCycle() {
         return;
     }
 
-    // If currently voyaging, check progress
+    // If currently voyaging, wait and check again
     if (gameState.isVoyaging) {
-        setTimeout(() => runAutopilotCycle(), 1000);
+        // Double-check timeout before scheduling next cycle
+        // This prevents infinite loops during voyages
+        if (!checkAutopilotTimeout()) {
+            setTimeout(() => runAutopilotCycle(), 1000);
+        }
         return;
     }
 
