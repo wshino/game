@@ -190,9 +190,13 @@ export function runAutopilotCycle() {
         return;
     }
 
-    // If currently voyaging, check progress
+    // If currently voyaging, wait and check again
     if (gameState.isVoyaging) {
-        setTimeout(() => runAutopilotCycle(), 1000);
+        // Double-check timeout before scheduling next cycle
+        // This prevents infinite loops during voyages
+        if (!checkAutopilotTimeout()) {
+            setTimeout(() => runAutopilotCycle(), 1000);
+        }
         return;
     }
 
