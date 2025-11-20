@@ -102,6 +102,59 @@ export function loadGame() {
                 totalProfit: 0
             };
 
+            // Load port investments (with backward compatibility)
+            gameState.portInvestments = loadedState.portInvestments || {
+                lisbon: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 },
+                seville: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 },
+                venice: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 },
+                alexandria: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 },
+                calicut: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 },
+                malacca: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 },
+                nagasaki: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 }
+            };
+
+            // Load achievements (with backward compatibility)
+            gameState.achievements = loadedState.achievements || {
+                apprentice: true,
+                merchant: false,
+                greatMerchant: false,
+                wealthyMerchant: false,
+                tradeKing: false,
+                seaLord: false,
+                worldTraveler: false,
+                spiceKing: false,
+                tradeMaster: false,
+                investor: false,
+                portRuler: false
+            };
+
+            // Load statistics (with backward compatibility)
+            gameState.statistics = loadedState.statistics || {
+                totalGoldEarned: 0,
+                totalVoyages: 0,
+                totalTrades: 0,
+                goodsTraded: {
+                    wine: 0,
+                    cloth: 0,
+                    spices: 0,
+                    silk: 0,
+                    gold_ore: 0,
+                    porcelain: 0,
+                    tea: 0,
+                    silver: 0
+                },
+                portsVisited: {
+                    lisbon: true,
+                    seville: false,
+                    venice: false,
+                    alexandria: false,
+                    calicut: false,
+                    malacca: false,
+                    nagasaki: false
+                },
+                maxGold: loadedState.gold || 1100
+            };
+
             // Load port inventory if available
             if (loadedState.portInventory) {
                 for (const portId in loadedState.portInventory) {
