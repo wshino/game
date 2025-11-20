@@ -255,6 +255,147 @@ export function getSeaRoute(fromPortId, toPortId) {
     return [[fromPort.x, fromPort.y], [toPort.x, toPort.y]];
 }
 
+// Facility definitions for port investment system
+export const FACILITIES = {
+    warehouse: {
+        name: '倉庫',
+        icon: '🏪',
+        maxLevel: 3,
+        costs: [5000, 10000, 20000],
+        effects: [
+            { storage: 50 },
+            { storage: 100 },
+            { storage: 150 }
+        ],
+        description: '商品を保管できるスペースが増える'
+    },
+    tradingPost: {
+        name: '商館',
+        icon: '🏛️',
+        maxLevel: 2,
+        costs: [10000, 20000],
+        effects: [
+            { priceBonus: 0.05 },  // 5%
+            { priceBonus: 0.10 }   // 10%
+        ],
+        description: '取引価格が優遇される'
+    },
+    shipyard: {
+        name: '造船所',
+        icon: '⚓',
+        maxLevel: 1,
+        costs: [15000],
+        effects: [
+            { repairAvailable: true }
+        ],
+        description: '船の修理が可能（将来の拡張用）'
+    },
+    market: {
+        name: '市場拡張',
+        icon: '🏬',
+        maxLevel: 2,
+        costs: [8000, 16000],
+        effects: [
+            { stockBonus: 0.25 },  // 25%
+            { stockBonus: 0.50 }   // 50%
+        ],
+        description: '港の在庫上限と回復速度が向上'
+    }
+};
+
+// Reputation levels based on total investment in a port
+export const REPUTATION_LEVELS = [
+    { level: 0, name: '無名', minInvestment: 0 },
+    { level: 1, name: '知人', minInvestment: 10000 },
+    { level: 2, name: '友人', minInvestment: 30000 },
+    { level: 3, name: '名士', minInvestment: 60000 },
+    { level: 4, name: '支配者', minInvestment: 100000 }
+];
+
+// Achievement definitions
+export const ACHIEVEMENTS = {
+    // Wealth-based achievements
+    apprentice: {
+        id: 'apprentice',
+        name: '見習い商人',
+        description: '冒険の始まり',
+        condition: { type: 'gold', value: 0 },
+        bonus: null
+    },
+    merchant: {
+        id: 'merchant',
+        name: '商人',
+        description: '10,000Gを達成',
+        condition: { type: 'gold', value: 10000 },
+        bonus: null
+    },
+    greatMerchant: {
+        id: 'greatMerchant',
+        name: '大商人',
+        description: '50,000Gを達成',
+        condition: { type: 'gold', value: 50000 },
+        bonus: null
+    },
+    wealthyMerchant: {
+        id: 'wealthyMerchant',
+        name: '豪商',
+        description: '100,000Gを達成',
+        condition: { type: 'gold', value: 100000 },
+        bonus: { type: 'allPrices', value: 0.02 }  // 全取引+2%
+    },
+    tradeKing: {
+        id: 'tradeKing',
+        name: '貿易王',
+        description: '500,000Gを達成',
+        condition: { type: 'gold', value: 500000 },
+        bonus: { type: 'allPrices', value: 0.05 }  // 全取引+5%
+    },
+    seaLord: {
+        id: 'seaLord',
+        name: '海洋覇者',
+        description: '1,000,000Gを達成',
+        condition: { type: 'gold', value: 1000000 },
+        bonus: { type: 'allPrices', value: 0.10 }  // 全取引+10%
+    },
+
+    // Action-based achievements
+    worldTraveler: {
+        id: 'worldTraveler',
+        name: '世界一周',
+        description: '全7港を訪問',
+        condition: { type: 'portsVisited', value: 7 },
+        bonus: { type: 'goldReward', value: 1000 }
+    },
+    spiceKing: {
+        id: 'spiceKing',
+        name: '香辛料王',
+        description: '香辛料を累計500個取引',
+        condition: { type: 'goodTraded', good: 'spices', value: 500 },
+        bonus: { type: 'goodPrice', good: 'spices', value: 0.03 }  // 香辛料+3%
+    },
+    tradeMaster: {
+        id: 'tradeMaster',
+        name: '貿易マスター',
+        description: '累計100回の航海',
+        condition: { type: 'voyages', value: 100 },
+        bonus: { type: 'supplyCost', value: -0.10 }  // 補給費用-10%
+    },
+    investor: {
+        id: 'investor',
+        name: '投資家',
+        description: '全港に少なくとも1つの施設を建設',
+        condition: { type: 'facilitiesInAllPorts', value: 1 },
+        bonus: { type: 'allPrices', value: 0.02 }  // 全港+2%
+    },
+    portRuler: {
+        id: 'portRuler',
+        name: '港の支配者',
+        description: '1つの港で名声レベル最大',
+        condition: { type: 'maxReputationInOnePort', value: 4 },
+        bonus: { type: 'specialBonus', description: 'その港で特別ボーナス' }
+    }
+};
+
 // CommonJS support for tests
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -267,6 +408,9 @@ if (typeof module !== 'undefined' && module.exports) {
         weatherTypes,
         portPrices,
         shipUpgrades,
-        getSeaRoute
+        getSeaRoute,
+        FACILITIES,
+        REPUTATION_LEVELS,
+        ACHIEVEMENTS
     };
 }

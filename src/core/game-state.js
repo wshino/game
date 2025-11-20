@@ -30,6 +30,58 @@ export const gameState = {
         trades: [],
         voyages: [],
         totalProfit: 0
+    },
+    // Port investment system
+    portInvestments: {
+        lisbon: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 },
+        seville: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 },
+        venice: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 },
+        alexandria: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 },
+        calicut: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 },
+        malacca: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 },
+        nagasaki: { warehouse: 0, tradingPost: 0, shipyard: 0, market: 0 }
+    },
+    // Achievement system
+    achievements: {
+        // Wealth-based achievements
+        apprentice: true,          // 見習い商人 (starting achievement)
+        merchant: false,           // 商人 (10,000G)
+        greatMerchant: false,      // 大商人 (50,000G)
+        wealthyMerchant: false,    // 豪商 (100,000G)
+        tradeKing: false,          // 貿易王 (500,000G)
+        seaLord: false,            // 海洋覇者 (1,000,000G)
+        // Action-based achievements
+        worldTraveler: false,      // 世界一周 (全7港を訪問)
+        spiceKing: false,          // 香辛料王 (香辛料を累計500個取引)
+        tradeMaster: false,        // 貿易マスター (累計100回の航海)
+        investor: false,           // 投資家 (全港に少なくとも1つの施設)
+        portRuler: false           // 港の支配者 (1つの港で名声レベル最大)
+    },
+    // Statistics tracking
+    statistics: {
+        totalGoldEarned: 0,        // 累計獲得金額
+        totalVoyages: 0,           // 累計航海数
+        totalTrades: 0,            // 累計取引数
+        goodsTraded: {             // 商品別の取引数
+            wine: 0,
+            cloth: 0,
+            spices: 0,
+            silk: 0,
+            gold_ore: 0,
+            porcelain: 0,
+            tea: 0,
+            silver: 0
+        },
+        portsVisited: {            // 訪問した港
+            lisbon: true,          // Start at Lisbon
+            seville: false,
+            venice: false,
+            alexandria: false,
+            calicut: false,
+            malacca: false,
+            nagasaki: false
+        },
+        maxGold: 1100              // 最高所持金 (starts at initial gold)
     }
 };
 
