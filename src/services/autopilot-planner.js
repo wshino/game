@@ -32,33 +32,28 @@ export function findBestTrade(getRemainingAutopilotTime) {
         let bestSellPort = currentPortId;
         let bestTotalSellValue = 0;
 
-        // Calculate sell value at current port
-        const originalPort = gameState.currentPort;
-        gameState.currentPort = currentPortId;
+        // Calculate sell value at current port (using portId parameter)
         for (const goodId in gameState.inventory) {
             if (goodId === 'food' || goodId === 'water') continue;
             const quantity = gameState.inventory[goodId];
             if (quantity > 0) {
-                bestTotalSellValue += getPrice(goodId, false) * quantity;
+                bestTotalSellValue += getPrice(goodId, false, currentPortId) * quantity;
             }
         }
-        gameState.currentPort = originalPort;
 
         // Check all other ports for better selling prices
         for (const destPortId in ports) {
             if (destPortId === currentPortId) continue;
 
-            // Calculate total sell value at destination
-            gameState.currentPort = destPortId;
+            // Calculate total sell value at destination (using portId parameter)
             let destSellValue = 0;
             for (const goodId in gameState.inventory) {
                 if (goodId === 'food' || goodId === 'water') continue;
                 const quantity = gameState.inventory[goodId];
                 if (quantity > 0) {
-                    destSellValue += getPrice(goodId, false) * quantity;
+                    destSellValue += getPrice(goodId, false, destPortId) * quantity;
                 }
             }
-            gameState.currentPort = originalPort;
 
             // Calculate travel cost
             const distance = portDistances[currentPortId][destPortId];
@@ -167,7 +162,6 @@ export function findBestTrade(getRemainingAutopilotTime) {
 // Returns: { totalProfit, goodsToBuy: [...], supplyCost, waterNeeded, foodNeeded }
 export function calculateOptimalPurchaseForDestination(destPortId) {
     const currentPortId = gameState.currentPort;
-    const originalPort = gameState.currentPort;
 
     // 1. Calculate travel cost and required supplies
     const distance = portDistances[currentPortId][destPortId];
@@ -205,15 +199,14 @@ export function calculateOptimalPurchaseForDestination(destPortId) {
     for (const goodId in goods) {
         if (goodId === 'food' || goodId === 'water') continue;
 
-        const buyPrice = getPrice(goodId, true);
+        // Get buy price at current port (using portId parameter)
+        const buyPrice = getPrice(goodId, true, currentPortId);
         const portStock = getPortStock(currentPortId, goodId);
 
         if (portStock <= 0 || buyPrice <= 0) continue;
 
-        // Get sell price at destination
-        gameState.currentPort = destPortId;
-        const sellPrice = getPrice(goodId, false);
-        gameState.currentPort = originalPort;
+        // Get sell price at destination (using portId parameter - no state mutation)
+        const sellPrice = getPrice(goodId, false, destPortId);
 
         const profitPerUnit = sellPrice - buyPrice;
 
