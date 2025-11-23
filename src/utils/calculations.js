@@ -17,9 +17,11 @@ export function getCargoSpace() {
 }
 
 // Get price for a good (buying or selling)
-export function getPrice(goodId, isBuying = true) {
+// portId parameter allows calculating prices at any port without mutating global state
+export function getPrice(goodId, isBuying = true, portId = null) {
+    const targetPort = portId !== null ? portId : gameState.currentPort;
     const good = goods[goodId];
-    const multiplier = portPrices[gameState.currentPort][goodId];
+    const multiplier = portPrices[targetPort][goodId];
     const basePrice = good.basePrice * multiplier;
     // Add some randomness (±10%)
     const randomFactor = 0.9 + Math.random() * 0.2;
