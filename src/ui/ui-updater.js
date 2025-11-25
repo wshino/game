@@ -3,7 +3,7 @@ import { ports, goods, portDistances, shipUpgrades } from '../core/constants.js'
 import { getPrice, getCargoUsed, getCargoSpace, getCurrentPortName, getRecommendedGoods, canAffordVoyage, isProfitable } from '../utils/calculations.js';
 import { getPortStock } from '../services/port-service.js';
 import { calculateRequiredSupplies, hasEnoughSupplies } from '../services/supply-service.js';
-import { saveGame } from '../services/save-service.js';
+import { saveGameDebounced } from '../services/save-service.js';
 
 // Callback functions that will be set from main game file
 let updateAutopilotUI;
@@ -315,5 +315,5 @@ export function updateAll() {
     if (updateAutopilotUI) {
         updateAutopilotUI();
     }
-    saveGame(); // Auto-save after any state change
+    saveGameDebounced(); // Debounced auto-save to improve performance
 }

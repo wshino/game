@@ -32,21 +32,30 @@ export function saveGame() {
             portInventory: portInventory
         };
         localStorage.setItem('daikokaiGameSave', JSON.stringify(saveData));
-        console.log('ゲームをセーブしました - 資金:', gameState.gold, '日数:', gameState.gameTime);
     } catch (e) {
         console.error('セーブに失敗しました:', e);
     }
+}
+
+// Debounced save - delays save by 500ms, cancels previous pending saves
+let saveTimeout = null;
+export function saveGameDebounced() {
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+    }
+    saveTimeout = setTimeout(() => {
+        saveGame();
+        saveTimeout = null;
+    }, 500);
 }
 
 // Load game from localStorage
 export function loadGame() {
     try {
         const saved = localStorage.getItem('daikokaiGameSave');
-        console.log('ロード試行 - saved:', saved ? '存在する' : 'なし');
 
         if (saved) {
             const loadedState = JSON.parse(saved);
-            console.log('ロードしたデータ - 資金:', loadedState.gold, '日数:', loadedState.gameTime);
 
             // Load all saved state
             gameState.gold = loadedState.gold;
@@ -63,11 +72,9 @@ export function loadGame() {
                         ...latestShipDef,
                         crew: loadedState.ship.crew || latestShipDef.crew
                     };
-                    console.log(`船の定義を更新: ${latestShipDef.name} (積載量: ${latestShipDef.capacity})`);
                 } else {
                     // Ship not found in definitions, use saved data as fallback
                     gameState.ship = loadedState.ship;
-                    console.warn(`船の定義が見つかりません: ${loadedState.ship.name}`);
                 }
             } else {
                 gameState.ship = loadedState.ship;
@@ -183,8 +190,6 @@ export function loadGame() {
                 initializePortInventory();
             }
 
-            console.log('gameState更新後 - 資金:', gameState.gold, '日数:', gameState.gameTime);
-
             // Restore logs to UI
             const logDiv = document.getElementById('game-log');
             logDiv.innerHTML = '';
@@ -215,7 +220,6 @@ function checkAndUpdateVoyageProgress() {
     // Validate voyage state - if any critical data is missing, cancel the voyage
     if (!gameState.isVoyaging || !gameState.voyageStartTime || !gameState.voyageDestinationPort) {
         if (gameState.isVoyaging) {
-            console.log('航海状態が不完全です。航海をキャンセルします。');
             gameState.isVoyaging = false;
             gameState.voyageStartTime = null;
             gameState.voyageStartPort = null;
@@ -230,7 +234,6 @@ function checkAndUpdateVoyageProgress() {
 
     // Ensure voyageStartPort exists (for backward compatibility with old saves)
     if (!gameState.voyageStartPort) {
-        console.log('出発港が記録されていません。航海をキャンセルします。');
         gameState.isVoyaging = false;
         gameState.voyageStartTime = null;
         gameState.voyageStartPort = null;
@@ -246,8 +249,6 @@ function checkAndUpdateVoyageProgress() {
     const now = Date.now();
     const elapsedRealTime = now - gameState.voyageStartTime;
     const elapsedGameDays = Math.floor(elapsedRealTime / TIME_PER_DAY);
-
-    console.log('航海チェック - 経過日数:', elapsedGameDays, '必要日数:', gameState.voyageActualDays || gameState.voyageEstimatedDays);
 
     // Check if voyage is complete
     const requiredDays = gameState.voyageActualDays || gameState.voyageEstimatedDays;
@@ -296,8 +297,6 @@ function completeVoyageImmediately(actualDays) {
     addLog(`🏖️ ${ports[destinationPortId].emoji} ${newPort}に到着！`);
     addLog(`📅 現在の日数: ${gameState.gameTime}日目`);
 
-    console.log('航海完了 - 自動到着処理');
-
     // Save and update UI
     saveGame();
     if (updateAll) {
@@ -315,8 +314,6 @@ function checkAndUpdateAutopilotProgress() {
     const elapsedRealTime = now - gameState.autopilotStartTime;
     const elapsedMinutes = elapsedRealTime / 60000;
 
-    console.log('オートパイロットチェック - 経過時間:', elapsedMinutes, '分 / 設定時間:', gameState.autopilotDurationMinutes, '分');
-
     // If autopilot duration has not elapsed, simulate offline progress
     if (elapsedMinutes < gameState.autopilotDurationMinutes) {
         addLog('🤖 オートパイロット再開中...');
@@ -324,8 +321,6 @@ function checkAndUpdateAutopilotProgress() {
         // Simulate offline autopilot progress with dependencies
         const executorWithDeps = () => executeAutopilotDecision(getRemainingAutopilotTime);
         const summary = simulateOfflineAutopilot(elapsedMinutes, checkAutopilotTimeout, executorWithDeps);
-
-        console.log('オフラインシミュレーション結果:', summary);
 
         // Show offline progress details
         const profit = summary.goldEnd - summary.goldStart;
@@ -351,7 +346,6 @@ function checkAndUpdateAutopilotProgress() {
 
         const executorWithDeps = () => executeAutopilotDecision(getRemainingAutopilotTime);
         const summary = simulateOfflineAutopilot(gameState.autopilotDurationMinutes, checkAutopilotTimeout, executorWithDeps);
-        console.log('オフラインシミュレーション結果:', summary);
 
         // Show offline progress details
         const profit = summary.goldEnd - summary.goldStart;

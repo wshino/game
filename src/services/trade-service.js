@@ -3,6 +3,7 @@ import { goods, shipUpgrades } from '../core/constants.js';
 import { getPrice, getCargoSpace, getCargoUsed } from '../utils/calculations.js';
 import { getPortStock, reducePortStock } from './port-service.js';
 import { addLog } from '../utils/logger.js';
+import { saveGame } from './save-service.js';
 
 // UI callback functions
 let updateAll;
@@ -152,6 +153,7 @@ export function upgradeShip(shipIndex) {
     addLog(`⚓ ${newShip.name}にアップグレードしました！`);
     addLog(`📦 新しい積載量: ${newShip.capacity} / 速度: ${newShip.speed}x`);
 
+    saveGame(); // Important action - save immediately
     updateAll();
 }
 
