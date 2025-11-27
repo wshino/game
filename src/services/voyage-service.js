@@ -554,8 +554,8 @@ export function simulateVoyage(destinationPortId, estimatedDays) {
     setTimeout(updateVoyageUI, 1000);
 }
 
-// Complete voyage and update game state
-export function completeVoyage(destinationPortId, actualDays) {
+// Core voyage completion logic (shared between voyage-service and save-service)
+export function completeVoyageCore(destinationPortId, actualDays) {
     // Advance time
     gameState.gameTime += actualDays;
 
@@ -584,7 +584,15 @@ export function completeVoyage(destinationPortId, actualDays) {
     addLog(`🏖️ ${ports[destinationPortId].emoji} ${newPort}に到着！`);
     addLog(`📅 現在の日数: ${gameState.gameTime}日目`);
 
-    // Close modal
+    return { oldPort, newPort };
+}
+
+// Complete voyage and update game state
+export function completeVoyage(destinationPortId, actualDays) {
+    // Execute core completion logic
+    completeVoyageCore(destinationPortId, actualDays);
+
+    // Close modal after delay
     setTimeout(() => {
         const modal = document.getElementById('voyage-modal');
         if (modal) {
@@ -696,6 +704,7 @@ if (typeof module !== 'undefined' && module.exports) {
         startVoyage,
         simulateVoyage,
         completeVoyage,
+        completeVoyageCore,
         selectDestination,
         startSelectedVoyage,
         cancelDestination,

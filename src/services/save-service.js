@@ -2,7 +2,7 @@ import { gameState, portInventory } from '../core/game-state.js';
 import { ports, shipUpgrades, inventorySettings, goods } from '../core/constants.js';
 import { addLog } from '../utils/logger.js';
 import { initializePortInventory, refreshPortInventory } from './port-service.js';
-import { consumeSupplies } from './supply-service.js';
+import { completeVoyageCore } from './voyage-service.js';
 import {
     simulateOfflineAutopilot,
     runAutopilotCycle,
@@ -269,35 +269,10 @@ function checkAndUpdateVoyageProgress() {
 function completeVoyageImmediately(actualDays) {
     const destinationPortId = gameState.voyageDestinationPort;
 
-    // Advance time
-    gameState.gameTime += actualDays;
+    // Use shared core logic
+    completeVoyageCore(destinationPortId, actualDays);
 
-    // Consume supplies
-    consumeSupplies(actualDays);
-
-    // Change port
-    const oldPort = ports[gameState.voyageStartPort].name;
-    gameState.currentPort = destinationPortId;
-    const newPort = ports[destinationPortId].name;
-
-    // Refresh port inventories
-    refreshPortInventory(actualDays);
-
-    // Clear voyage state
-    gameState.isVoyaging = false;
-    gameState.voyageStartTime = null;
-    gameState.voyageStartPort = null;
-    gameState.voyageDestinationPort = null;
-    gameState.voyageEstimatedDays = null;
-    gameState.voyageActualDays = null;
-    gameState.voyageWeatherHistory = [];
-
-    // Add logs
-    addLog(`⛵ ${oldPort}から${newPort}へ${actualDays}日間の航海を終えました`);
-    addLog(`🏖️ ${ports[destinationPortId].emoji} ${newPort}に到着！`);
-    addLog(`📅 現在の日数: ${gameState.gameTime}日目`);
-
-    // Save and update UI
+    // Save and update UI immediately (no modal to close)
     saveGame();
     if (updateAll) {
         updateAll();
