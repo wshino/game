@@ -1,5 +1,5 @@
 import { gameState } from '../core/game-state.js';
-import { ports, portDistances, weatherTypes, seaRoutes } from '../core/constants.js';
+import { ports, portDistances, weatherTypes, seaRoutes, getSeaRoute } from '../core/constants.js';
 import { addLog } from '../utils/logger.js';
 import { refreshPortInventory } from './port-service.js';
 import { calculateRequiredSupplies, hasEnoughSupplies, consumeSupplies, autoSupplyForVoyage } from './supply-service.js';
@@ -12,26 +12,6 @@ let saveGame;
 export function setUICallbacks(updateAllFn, saveGameFn) {
     updateAll = updateAllFn;
     saveGame = saveGameFn;
-}
-
-// Get sea route with waypoints between two ports
-export function getSeaRoute(fromPortId, toPortId) {
-    // Direct route key
-    const routeKey = `${fromPortId}-${toPortId}`;
-    if (seaRoutes[routeKey]) {
-        return seaRoutes[routeKey];
-    }
-
-    // Reverse route key
-    const reverseRouteKey = `${toPortId}-${fromPortId}`;
-    if (seaRoutes[reverseRouteKey]) {
-        return [...seaRoutes[reverseRouteKey]].reverse();
-    }
-
-    // No predefined route, return direct line
-    const fromPort = ports[fromPortId];
-    const toPort = ports[toPortId];
-    return [[fromPort.x, fromPort.y], [toPort.x, toPort.y]];
 }
 
 // Get random weather based on probabilities
