@@ -1,8 +1,9 @@
 import { gameState } from '../core/game-state.js';
-import { ports, portDistances, weatherTypes, seaRoutes, getSeaRoute } from '../core/constants.js';
+import { ports, portDistances, weatherTypes, seaRoutes, getSeaRoute, RANDOM_EVENTS } from '../core/constants.js';
 import { addLog } from '../utils/logger.js';
 import { refreshPortInventory } from './port-service.js';
 import { calculateRequiredSupplies, hasEnoughSupplies, consumeSupplies, autoSupplyForVoyage } from './supply-service.js';
+import { checkForRandomEvent, processEventChoice, showEventModal, showEventResultModal, getEffectiveSpeed, applyDurabilityDamage } from './event-service.js';
 
 // UI callback functions
 let updateAll;
@@ -460,6 +461,8 @@ export function simulateVoyage(destinationPortId, estimatedDays) {
     const TIME_PER_DAY = 15000; // 15 seconds per game day
     let currentWeather = getRandomWeather();
     let lastWeatherChangeDay = 0;
+    let lastEventCheckDay = -1;
+    let voyagePaused = false;
 
     const voyageLog = document.getElementById('voyage-log');
     const addVoyageLog = (message) => {
@@ -482,6 +485,12 @@ export function simulateVoyage(destinationPortId, estimatedDays) {
 
     // Update UI based on real-time elapsed
     const updateVoyageUI = () => {
+        // Don't update if paused for event
+        if (voyagePaused) {
+            setTimeout(updateVoyageUI, 500);
+            return;
+        }
+
         const now = Date.now();
         const elapsedRealTime = now - gameState.voyageStartTime;
         const daysElapsedExact = elapsedRealTime / TIME_PER_DAY; // Exact days with decimals for smooth animation
@@ -513,6 +522,53 @@ export function simulateVoyage(destinationPortId, estimatedDays) {
             }
         }
 
+        // Check for random events (once per day, not on first or last day)
+        if (daysElapsed > lastEventCheckDay && daysElapsed > 0 && daysElapsed < actualDaysNeeded - 1) {
+            lastEventCheckDay = daysElapsed;
+            const event = checkForRandomEvent(daysElapsed);
+
+            if (event && event.id !== 'festival') { // Festival is port-arrival only
+                voyagePaused = true;
+                addVoyageLog(`${event.emoji} ${event.name}！`);
+
+                // Show event modal
+                showEventModal(event, (choiceId) => {
+                    const result = processEventChoice(event.id, choiceId);
+
+                    // Log the result
+                    for (const msg of result.messages) {
+                        addVoyageLog(msg);
+                    }
+
+                    // Apply voyage delay for storm damage
+                    if (event.id === 'cargoLoss' || result.durabilityChange < -20) {
+                        const extraDelay = 1;
+                        gameState.voyageActualDays += extraDelay;
+                        addVoyageLog(`⏰ 対応に時間がかかり、到着が${extraDelay}日遅れる`);
+                    }
+
+                    // Check if ship is too damaged to continue
+                    if (gameState.ship.durability <= 0) {
+                        addVoyageLog('💀 船が大破！緊急帰港します...');
+                        // Emergency return - lose some time and gold
+                        const emergencyLoss = Math.floor(gameState.gold * 0.1);
+                        gameState.gold = Math.max(0, gameState.gold - emergencyLoss);
+                        gameState.ship.durability = Math.floor(gameState.ship.maxDurability * 0.1);
+                        completeVoyage(gameState.voyageStartPort, daysElapsed + 2);
+                        return;
+                    }
+
+                    // Show result modal
+                    showEventResultModal(result, () => {
+                        voyagePaused = false;
+                        saveGame();
+                    });
+                });
+
+                return; // Don't continue until event is resolved
+            }
+        }
+
         // Update UI (only if elements exist - may not exist if browser is closed)
         const daysElapsedElement = document.getElementById('voyage-days-elapsed');
         if (daysElapsedElement) {
@@ -541,6 +597,32 @@ export function simulateVoyage(destinationPortId, estimatedDays) {
 
         // Check if voyage is complete
         if (daysElapsed >= actualDaysNeeded) {
+            // Small durability loss from normal voyage
+            const voyageDamage = Math.floor(estimatedDays * 0.5);
+            if (voyageDamage > 0) {
+                applyDurabilityDamage(voyageDamage);
+                addVoyageLog(`🔧 航海による摩耗: 耐久度-${voyageDamage}`);
+            }
+
+            // Check for festival event at arrival (10% chance)
+            if (Math.random() < 0.1) {
+                const festivalEvent = RANDOM_EVENTS.festival;
+                voyagePaused = true;
+                addVoyageLog(`${festivalEvent.emoji} ${festivalEvent.description}`);
+
+                showEventModal(festivalEvent, (choiceId) => {
+                    const result = processEventChoice('festival', choiceId);
+                    for (const msg of result.messages) {
+                        addVoyageLog(msg);
+                    }
+                    showEventResultModal(result, () => {
+                        voyagePaused = false;
+                        completeVoyage(destinationPortId, actualDaysNeeded);
+                    });
+                });
+                return;
+            }
+
             completeVoyage(destinationPortId, actualDaysNeeded);
             return; // Stop updating
         }

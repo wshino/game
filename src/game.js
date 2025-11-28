@@ -2,7 +2,7 @@
 
 // Core modules
 import { gameState, portInventory } from './core/game-state.js';
-import { ports, goods, portDistances, seaRoutes, inventorySettings, shipUpgrades } from './core/constants.js';
+import { ports, goods, portDistances, seaRoutes, inventorySettings, shipUpgrades, TREASURES } from './core/constants.js';
 
 // Utils
 import { addLog } from './utils/logger.js';
@@ -26,6 +26,11 @@ import {
     stopAutopilot,
     setUICallbacks as setAutopilotUICallbacks
 } from './services/autopilot-service.js';
+import {
+    setEventUICallbacks,
+    useTreasure,
+    repairShip
+} from './services/event-service.js';
 
 // UI
 import { updateAll, setUICallbacks as setUIUpdaterCallbacks } from './ui/ui-updater.js';
@@ -39,6 +44,7 @@ function initGame() {
     setVoyageUICallbacks(updateAll, saveGame);
     setAutopilotUICallbacks(updateAll, saveGame, showAutopilotReport);
     setUIUpdaterCallbacks(updateAutopilotUI);
+    setEventUICallbacks(updateAll, saveGame);
 
     // Load game or start new game
     const loaded = loadGame();
@@ -54,6 +60,7 @@ function initGame() {
         addLog('💡 港の在庫は限られています。時間が経つと在庫が回復します。');
         addLog('💡 資金を貯めて、より大きな船にアップグレードしましょう！');
         addLog('💡 移動中にゲームを閉じても、現実時間で移動が進行します！');
+        addLog('⚠️ 航海中はランダムなイベントが発生することがあります！');
     }
 
     updateAll();
@@ -76,6 +83,27 @@ if (typeof window !== 'undefined') {
     window.stopAutopilot = stopAutopilot;
     window.closeAutopilotReport = closeAutopilotReport;
     window.toggleAutopilot = toggleAutopilot;
+
+    // Treasure and repair functions
+    window.useTreasureItem = (treasureId) => {
+        const result = useTreasure(treasureId);
+        if (result.success) {
+            for (const msg of result.messages) {
+                addLog(msg);
+            }
+        } else {
+            addLog(`❌ ${result.message}`);
+        }
+        updateAll();
+    };
+
+    window.repairShipAction = () => {
+        const result = repairShip(gameState.currentPort);
+        if (!result.success) {
+            addLog(`❌ ${result.message}`);
+        }
+        updateAll();
+    };
 }
 
 // Export for testing (Node.js environment)
