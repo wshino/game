@@ -207,6 +207,8 @@ export const shipUpgrades = [
         speed: 1,
         cost: 0,
         crew: 20,
+        maxDurability: 100,
+        combatPower: 10,
         description: '小型で機動性の高い船'
     },
     {
@@ -215,6 +217,8 @@ export const shipUpgrades = [
         speed: 1.2,
         cost: 5000,
         crew: 40,
+        maxDurability: 150,
+        combatPower: 25,
         description: '大型で積載量が多い船'
     },
     {
@@ -223,6 +227,8 @@ export const shipUpgrades = [
         speed: 1.5,
         cost: 15000,
         crew: 60,
+        maxDurability: 200,
+        combatPower: 50,
         description: '最大級の貿易船'
     },
     {
@@ -231,6 +237,8 @@ export const shipUpgrades = [
         speed: 2,
         cost: 50000,
         crew: 100,
+        maxDurability: 300,
+        combatPower: 80,
         description: '伝説の大型貿易船'
     }
 ];
@@ -311,6 +319,272 @@ export const REPUTATION_LEVELS = [
     { level: 3, name: '名士', minInvestment: 60000 },
     { level: 4, name: '支配者', minInvestment: 100000 }
 ];
+
+// Random Events during voyage
+export const RANDOM_EVENTS = {
+    // 海賊遭遇
+    pirate: {
+        id: 'pirate',
+        name: '海賊遭遇',
+        emoji: '🏴‍☠️',
+        probability: 0.15,
+        description: '海賊船が接近してきた！',
+        choices: [
+            {
+                id: 'fight',
+                text: '⚔️ 戦う',
+                description: '勝利すれば報酬、敗北すれば損害'
+            },
+            {
+                id: 'flee',
+                text: '🏃 逃げる',
+                description: '速度が高いほど成功しやすい'
+            },
+            {
+                id: 'pay',
+                text: '💰 身代金を払う',
+                description: '所持金の10-20%を支払う'
+            }
+        ]
+    },
+    // 漂流者発見
+    castaway: {
+        id: 'castaway',
+        name: '漂流者発見',
+        emoji: '🆘',
+        probability: 0.10,
+        description: '海に漂流者を発見した！',
+        choices: [
+            {
+                id: 'rescue',
+                text: '🤝 救助する',
+                description: '感謝の報酬を得られるかも'
+            },
+            {
+                id: 'ignore',
+                text: '👀 無視する',
+                description: '何も起こらない'
+            }
+        ]
+    },
+    // 沈没船発見
+    shipwreck: {
+        id: 'shipwreck',
+        name: '沈没船発見',
+        emoji: '🚢',
+        probability: 0.08,
+        description: '沈没した船を発見した！',
+        choices: [
+            {
+                id: 'explore',
+                text: '🔍 探索する',
+                description: 'お宝を見つけるチャンス、ただしリスクも'
+            },
+            {
+                id: 'leave',
+                text: '➡️ 通り過ぎる',
+                description: '安全に航海を続ける'
+            }
+        ]
+    },
+    // 謎の商人
+    mysteriousMerchant: {
+        id: 'mysteriousMerchant',
+        name: '謎の商人',
+        emoji: '🎭',
+        probability: 0.10,
+        description: '謎めいた商人の船と遭遇した！',
+        choices: [
+            {
+                id: 'trade',
+                text: '🤝 取引する',
+                description: 'レアなアイテムを入手できるかも'
+            },
+            {
+                id: 'decline',
+                text: '✋ 断る',
+                description: '怪しいので取引しない'
+            }
+        ]
+    },
+    // 嵐による積荷損失
+    cargoLoss: {
+        id: 'cargoLoss',
+        name: '激しい嵐',
+        emoji: '🌊',
+        probability: 0.12,
+        description: '激しい嵐で積荷が流された！',
+        choices: [
+            {
+                id: 'accept',
+                text: '😢 受け入れる',
+                description: '一部の積荷を失う'
+            }
+        ]
+    },
+    // 人魚の加護
+    mermaidBlessing: {
+        id: 'mermaidBlessing',
+        name: '人魚の歌',
+        emoji: '🧜‍♀️',
+        probability: 0.05,
+        description: '美しい人魚の歌が聞こえてきた...',
+        choices: [
+            {
+                id: 'listen',
+                text: '👂 耳を傾ける',
+                description: '幸運を授かるかも'
+            },
+            {
+                id: 'ignore',
+                text: '🙈 無視する',
+                description: '罠かもしれない'
+            }
+        ]
+    },
+    // 幽霊船
+    ghostShip: {
+        id: 'ghostShip',
+        name: '幽霊船',
+        emoji: '👻',
+        probability: 0.05,
+        description: '霧の中に古びた船が現れた...',
+        choices: [
+            {
+                id: 'board',
+                text: '⚓ 乗り込む',
+                description: '勇気があれば宝が見つかるかも'
+            },
+            {
+                id: 'flee',
+                text: '🏃 逃げる',
+                description: '呪いを受ける可能性を避ける'
+            }
+        ]
+    },
+    // 港の祭り（到着時）
+    festival: {
+        id: 'festival',
+        name: '港の祭り',
+        emoji: '🎉',
+        probability: 0.10,
+        description: '港で盛大な祭りが開催されている！',
+        choices: [
+            {
+                id: 'join',
+                text: '🎊 参加する',
+                description: '特別な取引機会があるかも'
+            },
+            {
+                id: 'skip',
+                text: '⏭️ 通常通り',
+                description: '通常の取引を行う'
+            }
+        ]
+    }
+};
+
+// Treasure/Rare Item definitions
+export const TREASURES = {
+    ancientMap: {
+        id: 'ancientMap',
+        name: '古代の地図',
+        emoji: '🗺️',
+        rarity: 'rare',
+        description: '謎めいた場所を示す古い地図',
+        effect: { type: 'bonus_gold_next_trade', value: 0.20 },
+        usable: true
+    },
+    goldenCompass: {
+        id: 'goldenCompass',
+        name: '黄金の羅針盤',
+        emoji: '🧭',
+        rarity: 'legendary',
+        description: '航海速度を永続的に向上させる',
+        effect: { type: 'permanent_speed_bonus', value: 0.10 },
+        usable: true
+    },
+    luckyCharm: {
+        id: 'luckyCharm',
+        name: '幸運のお守り',
+        emoji: '🍀',
+        rarity: 'uncommon',
+        description: 'イベントで良い結果が出やすくなる',
+        effect: { type: 'luck_bonus', value: 0.15 },
+        usable: false
+    },
+    pirateFlag: {
+        id: 'pirateFlag',
+        name: '海賊旗',
+        emoji: '🏴‍☠️',
+        rarity: 'uncommon',
+        description: '海賊に遭遇しにくくなる',
+        effect: { type: 'pirate_protection', value: 0.50 },
+        usable: false
+    },
+    merchantSeal: {
+        id: 'merchantSeal',
+        name: '商人ギルドの印章',
+        emoji: '📜',
+        rarity: 'rare',
+        description: '取引時に有利な価格で交渉できる',
+        effect: { type: 'trade_bonus', value: 0.05 },
+        usable: false
+    },
+    mermaidTear: {
+        id: 'mermaidTear',
+        name: '人魚の涙',
+        emoji: '💧',
+        rarity: 'legendary',
+        description: '使用すると船の耐久度を完全回復',
+        effect: { type: 'full_repair', value: 1 },
+        usable: true
+    },
+    phoenixFeather: {
+        id: 'phoenixFeather',
+        name: '不死鳥の羽',
+        emoji: '🪶',
+        rarity: 'legendary',
+        description: '一度だけ海賊との戦闘で必ず勝利',
+        effect: { type: 'guaranteed_victory', value: 1 },
+        usable: true
+    },
+    royalCrown: {
+        id: 'royalCrown',
+        name: '王家の冠',
+        emoji: '👑',
+        rarity: 'legendary',
+        description: '売却すると大金が手に入る',
+        effect: { type: 'sell_value', value: 50000 },
+        usable: true
+    },
+    ancientCoin: {
+        id: 'ancientCoin',
+        name: '古代のコイン',
+        emoji: '🪙',
+        rarity: 'uncommon',
+        description: '売却するとそこそこの金が手に入る',
+        effect: { type: 'sell_value', value: 500 },
+        usable: true
+    },
+    cursedIdol: {
+        id: 'cursedIdol',
+        name: '呪いの偶像',
+        emoji: '🗿',
+        rarity: 'rare',
+        description: '強力だが代償を伴う...',
+        effect: { type: 'cursed', value: 0 },
+        usable: true
+    }
+};
+
+// Rarity colors and probabilities
+export const RARITY_CONFIG = {
+    common: { color: '#9e9e9e', name: 'コモン', dropWeight: 50 },
+    uncommon: { color: '#4caf50', name: 'アンコモン', dropWeight: 30 },
+    rare: { color: '#2196f3', name: 'レア', dropWeight: 15 },
+    legendary: { color: '#ff9800', name: 'レジェンダリー', dropWeight: 5 }
+};
 
 // Achievement definitions
 export const ACHIEVEMENTS = {
@@ -411,6 +685,9 @@ if (typeof module !== 'undefined' && module.exports) {
         getSeaRoute,
         FACILITIES,
         REPUTATION_LEVELS,
+        RANDOM_EVENTS,
+        TREASURES,
+        RARITY_CONFIG,
         ACHIEVEMENTS
     };
 }

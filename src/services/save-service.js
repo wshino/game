@@ -62,15 +62,19 @@ export function loadGame() {
             gameState.currentPort = loadedState.currentPort;
             gameState.inventory = loadedState.inventory || {};
 
-            // Load ship - update to latest ship definition while preserving game state (crew)
+            // Load ship - update to latest ship definition while preserving game state
             if (loadedState.ship && loadedState.ship.name) {
                 // Find the latest ship definition by name
                 const latestShipDef = shipUpgrades.find(s => s.name === loadedState.ship.name);
                 if (latestShipDef) {
-                    // Use latest definition but preserve crew from save
+                    // Use latest definition but preserve saved values
                     gameState.ship = {
                         ...latestShipDef,
-                        crew: loadedState.ship.crew || latestShipDef.crew
+                        crew: loadedState.ship.crew || latestShipDef.crew,
+                        durability: loadedState.ship.durability ?? latestShipDef.maxDurability,
+                        maxDurability: latestShipDef.maxDurability,
+                        combatPower: latestShipDef.combatPower,
+                        speedBonus: loadedState.ship.speedBonus || 0
                     };
                 } else {
                     // Ship not found in definitions, use saved data as fallback
@@ -80,9 +84,21 @@ export function loadGame() {
                 gameState.ship = loadedState.ship;
             }
 
-            // Ensure crew exists (for backward compatibility)
+            // Ensure ship properties exist (for backward compatibility)
             if (!gameState.ship.crew) {
                 gameState.ship.crew = 20;
+            }
+            if (gameState.ship.durability === undefined) {
+                gameState.ship.durability = gameState.ship.maxDurability || 100;
+            }
+            if (!gameState.ship.maxDurability) {
+                gameState.ship.maxDurability = 100;
+            }
+            if (!gameState.ship.combatPower) {
+                gameState.ship.combatPower = 10;
+            }
+            if (gameState.ship.speedBonus === undefined) {
+                gameState.ship.speedBonus = 0;
             }
             gameState.logs = loadedState.logs || [];
             gameState.gameTime = loadedState.gameTime || 0;
@@ -161,6 +177,34 @@ export function loadGame() {
                 },
                 maxGold: loadedState.gold || 1100
             };
+
+            // Ensure event statistics exist (backward compatibility)
+            if (gameState.statistics.eventsEncountered === undefined) {
+                gameState.statistics.eventsEncountered = 0;
+            }
+            if (gameState.statistics.piratesDefeated === undefined) {
+                gameState.statistics.piratesDefeated = 0;
+            }
+            if (gameState.statistics.castawaysRescued === undefined) {
+                gameState.statistics.castawaysRescued = 0;
+            }
+            if (gameState.statistics.treasuresFound === undefined) {
+                gameState.statistics.treasuresFound = 0;
+            }
+
+            // Load treasures (with backward compatibility)
+            gameState.treasures = loadedState.treasures || {};
+
+            // Load active effects (with backward compatibility)
+            gameState.activeEffects = loadedState.activeEffects || {
+                bonusGoldNextTrade: 0,
+                luckBonus: 0,
+                pirateProtection: 0,
+                tradeBonus: 0
+            };
+
+            // Load pending event if any
+            gameState.pendingEvent = loadedState.pendingEvent || null;
 
             // Load port inventory if available
             if (loadedState.portInventory) {
