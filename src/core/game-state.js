@@ -7,8 +7,23 @@ export const gameState = {
         name: 'カラベル船',
         capacity: 100,
         speed: 1,
-        crew: 20
+        crew: 20,
+        durability: 100,
+        maxDurability: 100,
+        combatPower: 10,
+        speedBonus: 0 // Permanent speed bonus from treasures
     },
+    // Treasure collection
+    treasures: {},  // { treasureId: quantity }
+    // Active effects from treasures
+    activeEffects: {
+        bonusGoldNextTrade: 0,  // Percentage bonus for next trade
+        luckBonus: 0,           // Luck modifier for events
+        pirateProtection: 0,    // Reduced pirate encounter chance
+        tradeBonus: 0           // Permanent trade bonus
+    },
+    // Current event state (if an event is pending player choice)
+    pendingEvent: null,
     logs: [],
     gameTime: 0, // Game time in days
     isVoyaging: false, // Flag to track if currently on a voyage
@@ -81,7 +96,12 @@ export const gameState = {
             malacca: false,
             nagasaki: false
         },
-        maxGold: 1100              // 最高所持金 (starts at initial gold)
+        maxGold: 1100,             // 最高所持金 (starts at initial gold)
+        // Event statistics
+        eventsEncountered: 0,      // 遭遇したイベント数
+        piratesDefeated: 0,        // 倒した海賊数
+        castawaysRescued: 0,       // 救助した漂流者数
+        treasuresFound: 0          // 発見したお宝数
     }
 };
 

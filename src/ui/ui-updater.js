@@ -1,9 +1,10 @@
 import { gameState } from '../core/game-state.js';
-import { ports, goods, portDistances, shipUpgrades } from '../core/constants.js';
+import { ports, goods, portDistances, shipUpgrades, TREASURES, RARITY_CONFIG } from '../core/constants.js';
 import { getPrice, getCargoUsed, getCargoSpace, getCurrentPortName, getRecommendedGoods, canAffordVoyage, isProfitable } from '../utils/calculations.js';
 import { getPortStock } from '../services/port-service.js';
 import { calculateRequiredSupplies, hasEnoughSupplies } from '../services/supply-service.js';
 import { saveGameDebounced } from '../services/save-service.js';
+import { useTreasure, repairShip } from '../services/event-service.js';
 
 // Callback functions that will be set from main game file
 let updateAutopilotUI;
@@ -15,7 +16,7 @@ export function setUICallbacks(updateAutopilotUIFn) {
 
 // Update status bar
 export function updateStatusBar() {
-    document.getElementById('gold').textContent = gameState.gold;
+    document.getElementById('gold').textContent = gameState.gold.toLocaleString();
     document.getElementById('ship-name').textContent = gameState.ship.name;
     document.getElementById('crew-count').textContent = gameState.ship.crew;
     document.getElementById('cargo-space').textContent = getCargoUsed();
@@ -26,6 +27,95 @@ export function updateStatusBar() {
     const timeElement = document.getElementById('game-time');
     if (timeElement) {
         timeElement.textContent = gameState.gameTime;
+    }
+
+    // Update durability display
+    updateDurabilityDisplay();
+}
+
+// Update ship durability display
+export function updateDurabilityDisplay() {
+    const durabilityContainer = document.getElementById('durability-container');
+    if (!durabilityContainer) return;
+
+    const durability = gameState.ship.durability;
+    const maxDurability = gameState.ship.maxDurability;
+    const percentage = (durability / maxDurability) * 100;
+
+    let statusClass = '';
+    if (percentage < 30) {
+        statusClass = 'critical';
+    } else if (percentage < 50) {
+        statusClass = 'warning';
+    }
+
+    durabilityContainer.innerHTML = `
+        <div class="durability-bar">
+            <div class="durability-fill ${statusClass}" style="width: ${percentage}%"></div>
+            <span class="durability-text">🔧 ${durability}/${maxDurability}</span>
+        </div>
+    `;
+}
+
+// Update treasure display
+export function updateTreasures() {
+    const treasureDiv = document.getElementById('treasure-grid');
+    if (!treasureDiv) return;
+
+    treasureDiv.innerHTML = '';
+
+    const treasureEntries = Object.entries(gameState.treasures).filter(([_, qty]) => qty > 0);
+
+    if (treasureEntries.length === 0) {
+        treasureDiv.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.7);">まだお宝がありません</p>';
+        return;
+    }
+
+    for (const [treasureId, qty] of treasureEntries) {
+        const treasure = TREASURES[treasureId];
+        if (!treasure) continue;
+
+        const rarityConfig = RARITY_CONFIG[treasure.rarity];
+        const div = document.createElement('div');
+        div.className = `treasure-item ${treasure.rarity}`;
+        div.innerHTML = `
+            <span class="treasure-emoji">${treasure.emoji}</span>
+            <span class="treasure-name">${treasure.name}</span>
+            <span class="treasure-qty">x${qty}</span>
+            <span class="treasure-rarity ${treasure.rarity}">${rarityConfig.name}</span>
+            ${treasure.usable ? `<button class="btn btn-use-treasure" onclick="useTreasureItem('${treasureId}')">使用</button>` : ''}
+        `;
+        div.title = treasure.description;
+        treasureDiv.appendChild(div);
+    }
+}
+
+// Update repair button
+export function updateRepairButton() {
+    const repairContainer = document.getElementById('repair-container');
+    if (!repairContainer) return;
+
+    const investment = gameState.portInvestments[gameState.currentPort];
+    const hasShipyard = investment && investment.shipyard > 0;
+    const needsRepair = gameState.ship.durability < gameState.ship.maxDurability;
+    const damageAmount = gameState.ship.maxDurability - gameState.ship.durability;
+    const repairCost = damageAmount * 5;
+    const canAfford = gameState.gold >= repairCost;
+
+    if (hasShipyard && needsRepair) {
+        repairContainer.innerHTML = `
+            <button class="btn btn-repair" onclick="repairShipAction()" ${!canAfford ? 'disabled' : ''}>
+                🔧 修理する (${repairCost.toLocaleString()}G)
+            </button>
+        `;
+    } else if (hasShipyard && !needsRepair) {
+        repairContainer.innerHTML = `
+            <span style="color: #4caf50;">✅ 船は完全な状態です</span>
+        `;
+    } else {
+        repairContainer.innerHTML = `
+            <span style="color: #999; font-size: 0.9em;">⚓ 造船所がある港で修理できます</span>
+        `;
     }
 }
 
@@ -312,8 +402,13 @@ export function updateAll() {
     updateTradeGoods();
     updatePorts();
     updateUpgrades();
+    updateTreasures();
+    updateRepairButton();
     if (updateAutopilotUI) {
         updateAutopilotUI();
     }
     saveGameDebounced(); // Debounced auto-save to improve performance
 }
+
+// Export functions for global use
+export { useTreasure, repairShip };
