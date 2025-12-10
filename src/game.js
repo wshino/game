@@ -6,7 +6,7 @@ import { ports, goods, portDistances, seaRoutes, inventorySettings, shipUpgrades
 import { VERSION } from './core/version.js';
 
 // Utils
-import { addLog } from './utils/logger.js';
+import { addLog, clearLog } from './utils/logger.js';
 import * as calculations from './utils/calculations.js';
 
 // Services
@@ -111,6 +111,9 @@ if (typeof window !== 'undefined') {
         }
         updateAll();
     };
+
+    // ログクリアボタンのイベント登録
+    document.getElementById('clear-log-btn')?.addEventListener('click', clearLog);
 }
 
 // Export for testing (Node.js environment)

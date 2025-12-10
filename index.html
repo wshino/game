@@ -131,9 +131,14 @@
         <div class="log-panel">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <h3>📜 航海日誌</h3>
-                <button class="btn btn-sell" onclick="clearSave()" style="font-size: 0.85em; padding: 5px 10px;">
-                    🔄 データリセット
-                </button>
+                <div>
+                    <button id="clear-log-btn" class="btn btn-buy" title="ログをクリア" style="font-size: 0.85em; padding: 5px 10px; margin-right: 5px;">
+                        🗑️
+                    </button>
+                    <button class="btn btn-sell" onclick="clearSave()" style="font-size: 0.85em; padding: 5px 10px;">
+                        🔄 データリセット
+                    </button>
+                </div>
             </div>
             <div id="game-log" class="log-content">
                 <p>リスボン港に到着。新たな冒険の始まりだ！</p>
