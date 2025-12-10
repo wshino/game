@@ -1,0 +1,76 @@
+name: Claude Assistant
+
+on:
+  # Issueが作成・アサイン・ラベル付けされた時
+  issues:
+    types: [opened, assigned, labeled]
+
+  # Issue/PRへのコメント
+  issue_comment:
+    types: [created]
+
+  # PRレビューコメント
+  pull_request_review_comment:
+    types: [created]
+
+  # PRレビュー提出時
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  claude-response:
+    # @claudeメンション、またはauto-implementラベル付きIssue作成時に実行
+    if: |
+      (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'auto-implement')) ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # auto-implementラベル付きIssueの場合の追加指示
+          prompt: |
+            # プロジェクト固有の指示
+
+            ## 実装時の注意事項
+            - 実装前に必ず `openspec/project.md` と `openspec/AGENTS.md` を読んでください
+            - Specに書かれた範囲のみ実装してください
+            - 不明点があればIssueにコメントして確認してください
+            - 実装完了後は `npm test` を実行してテストを確認してください
+
+            ## コーディング規約
+            - コメントは日本語で記述
+            - Vanilla JavaScript (フレームワークなし)
+            - ES6+ モジュール形式
+
+            ## 問題発生時
+            実装中に不明点や判断に迷う点があれば:
+            1. 作業を一旦停止
+            2. このIssue/PRにコメントで質問
+            3. @${{ github.repository_owner }} をメンションして通知
+
+          allowed_tools: "Bash,Read,Write,Edit,Glob,Grep"
+          timeout_minutes: 30
