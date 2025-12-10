@@ -171,4 +171,6 @@ jobs:
             - ES6+ モジュール形式
 
           allowed_tools: "Bash,Read,Write,Edit,Glob,Grep,Bash(gh:*)"
+          # Claude Review Bot からのコメントを許可
+          allowed_bots: "claude"
           timeout_minutes: 30
