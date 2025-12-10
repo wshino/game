@@ -28,12 +28,12 @@ jobs:
     # 実行条件:
     # 1. auto-implementラベル付きIssue作成時
     # 2. @claudeメンション時 (Bot以外)
-    # 3. PRコメントに「必須修正」が含まれる場合 (レビューボットの指摘に自動対応)
-    #    ※「修正が必要な問題はありません」を含む場合は除外 (LGTMの場合)
+    # 3. PRコメントに「必須修正」が含まれ、かつ「LGTM」や「修正が必要な問題はありません」を含まない場合
+    #    (レビューボットの指摘に自動対応)
     if: |
       (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'auto-implement')) ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '必須修正') && !contains(github.event.comment.body, '修正が必要な問題はありません')) ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '必須修正') && !contains(github.event.comment.body, '修正が必要な問題はありません') && !contains(github.event.comment.body, 'LGTM') && !contains(github.event.comment.body, '修正完了')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
     runs-on: ubuntu-latest
@@ -41,6 +41,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # PRコメントの場合はPRのブランチをチェックアウト
+          ref: ${{ github.event.issue.pull_request && github.event.pull_request.head.ref || github.ref }}
+
+      - name: Checkout PR branch (for issue_comment on PR)
+        if: github.event_name == 'issue_comment' && github.event.issue.pull_request
+        run: |
+          PR_NUMBER=${{ github.event.issue.number }}
+          gh pr checkout $PR_NUMBER
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
