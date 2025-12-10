@@ -5,7 +5,7 @@ on:
   issues:
     types: [opened, assigned, labeled]
 
-  # Issue/PRへのコメント
+  # Issue/PRへのコメント (レビューボットのコメントも含む)
   issue_comment:
     types: [created]
 
@@ -13,7 +13,7 @@ on:
   pull_request_review_comment:
     types: [created]
 
-  # PRレビュー提出時
+  # PRレビュー提出時 (changes_requested で自動対応)
   pull_request_review:
     types: [submitted]
 
@@ -25,10 +25,15 @@ permissions:
 
 jobs:
   claude-response:
-    # @claudeメンション、またはauto-implementラベル付きIssue作成時に実行
+    # 実行条件:
+    # 1. auto-implementラベル付きIssue作成時
+    # 2. @claudeメンション時
+    # 3. PRコメントに「🚨 必須修正」が含まれる場合 (レビューボットの指摘に自動対応)
+    #    ※「修正が必要な問題はありません」を含む場合は除外 (LGTMの場合)
     if: |
       (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'auto-implement')) ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '🚨 必須修正') && !contains(github.event.comment.body, '修正が必要な問題はありません')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
     runs-on: ubuntu-latest
@@ -52,11 +57,21 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
-          # auto-implementラベル付きIssueの場合の追加指示
+          # 状況に応じた指示
           custom_instructions: |
             # プロジェクト固有の指示
 
-            ## 実装フロー (必ずこの順番で実行)
+            ## レビュー対応 (PRコメントに「🚨 必須修正」がある場合)
+            レビューで指摘された必須修正事項がある場合:
+            1. 指摘内容を確認し、修正が必要な箇所を特定
+            2. 指摘に従ってコードを修正
+            3. `npm test` でテストを実行して問題がないことを確認
+            4. 修正をコミットしてプッシュ (PRブランチに直接プッシュ)
+            5. 修正内容をPRにコメントで報告
+
+            **重要**: 「🔧 改善提案」は任意なので対応不要。「🚨 必須修正」のみ対応すること。
+
+            ## 新規実装フロー (auto-implementラベル付きIssueの場合)
             1. `openspec/project.md` と `openspec/AGENTS.md` を読む
             2. Issueに記載されたSpec配下のファイルを全て確認
             3. Specに書かれた範囲のみ実装
