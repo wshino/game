@@ -37,8 +37,8 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
-          # custom_instructions を使用 (prompt は deprecated)
-          custom_instructions: |
+          # direct_prompt を使用するとPR作成時に自動でレビューが実行される
+          direct_prompt: |
             # PRレビュー依頼
 
             このPRをレビューしてください。
