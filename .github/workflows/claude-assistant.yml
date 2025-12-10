@@ -24,15 +24,14 @@ permissions:
   id-token: write
 
 jobs:
+  # ジョブ1: @claudeメンションやauto-implementラベル付きIssueに対応
   claude-response:
     # 実行条件:
     # 1. auto-implementラベル付きIssue作成時
     # 2. @claudeメンション時 (Bot以外)
-    # 3. PRコメントに「[REQUIRES_FIX]」マーカーが含まれる場合 (レビューボットの指摘に自動対応)
     if: |
       (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'auto-implement')) ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '[REQUIRES_FIX]')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
     runs-on: ubuntu-latest
@@ -109,5 +108,65 @@ jobs:
             3. @${{ github.repository_owner }} をメンションして通知
 
           # gh CLIを許可してPR作成を可能にする
+          allowed_tools: "Bash,Read,Write,Edit,Glob,Grep,Bash(gh:*)"
+          timeout_minutes: 30
+
+  # ジョブ2: レビューボットの[REQUIRES_FIX]マーカーに自動対応
+  auto-fix-review:
+    # [REQUIRES_FIX]マーカーを含むPRコメントに対応
+    if: |
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '[REQUIRES_FIX]')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Checkout PR branch
+        run: |
+          PR_NUMBER=${{ github.event.issue.number }}
+          gh pr checkout $PR_NUMBER
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Run Claude Code (Auto-Fix)
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # direct_promptを使用して自動実行 (mode: tagのトリガーチェックをバイパス)
+          direct_prompt: |
+            レビューで指摘された必須修正([REQUIRES_FIX])を実施してください。
+
+            ## 手順
+            1. このPRのレビューコメントを確認し、「🚨 必須修正」セクションの内容を特定
+            2. 指摘された問題を修正
+            3. `npm test` でテストを実行して問題がないことを確認
+            4. 修正をコミットしてプッシュ
+            5. 修正内容をPRにコメントで報告
+
+            **重要**:
+            - 「🔧 改善提案」は任意なので対応不要
+            - 「🚨 必須修正」のみ対応すること
+            - 修正完了後は「修正を完了しました」とコメントすること
+
+          custom_instructions: |
+            ## コーディング規約
+            - コメントは日本語で記述
+            - Vanilla JavaScript (フレームワークなし)
+            - ES6+ モジュール形式
+
           allowed_tools: "Bash,Read,Write,Edit,Glob,Grep,Bash(gh:*)"
           timeout_minutes: 30
