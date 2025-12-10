@@ -6,8 +6,10 @@ on:
     types: [opened, assigned, labeled]
 
   # Issue/PRへのコメント (レビューボットのコメントも含む)
+  # editedも含める: Claude Reviewはstreamingでコメントを更新するため、
+  # [REQUIRES_FIX]マーカーが最初の投稿時には含まれていない可能性がある
   issue_comment:
-    types: [created]
+    types: [created, edited]
 
   # PRレビューコメント
   pull_request_review_comment:
