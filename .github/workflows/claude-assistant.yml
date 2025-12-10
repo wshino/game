@@ -61,6 +61,7 @@ jobs:
             - Specに書かれた範囲のみ実装してください
             - 不明点があればIssueにコメントして確認してください
             - 実装完了後は `npm test` を実行してテストを確認してください
+            - テストが通ったら `gh pr create` でPRを作成してください
 
             ## コーディング規約
             - コメントは日本語で記述
@@ -73,5 +74,6 @@ jobs:
             2. このIssue/PRにコメントで質問
             3. @${{ github.repository_owner }} をメンションして通知
 
-          allowed_tools: "Bash,Read,Write,Edit,Glob,Grep"
+          # gh CLIを許可してPR作成を可能にする
+          allowed_tools: "Bash,Read,Write,Edit,Glob,Grep,Bash(gh:*)"
           timeout_minutes: 30
