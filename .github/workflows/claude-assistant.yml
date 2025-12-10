@@ -56,12 +56,21 @@ jobs:
           custom_instructions: |
             # プロジェクト固有の指示
 
-            ## 実装時の注意事項
-            - 実装前に必ず `openspec/project.md` と `openspec/AGENTS.md` を読んでください
-            - Specに書かれた範囲のみ実装してください
-            - 不明点があればIssueにコメントして確認してください
-            - 実装完了後は `npm test` を実行してテストを確認してください
-            - テストが通ったら `gh pr create` でPRを作成してください
+            ## 実装フロー (必ずこの順番で実行)
+            1. `openspec/project.md` と `openspec/AGENTS.md` を読む
+            2. Issueに記載されたSpec配下のファイルを全て確認
+            3. Specに書かれた範囲のみ実装
+            4. `npm test` でテストを実行
+            5. 変更をコミットしてプッシュ
+            6. **必ず `gh pr create` でPRを作成** (これを省略しないこと!)
+
+            ## PR作成 (重要・必須)
+            実装が完了したら、以下のコマンドで必ずPRを作成してください:
+            ```
+            gh pr create --title "feat: [機能名]" --body "Closes #$ISSUE_NUMBER"
+            ```
+            - PRを作成しないと実装が完了したとみなされません
+            - ブランチをプッシュしただけでは不十分です
 
             ## コーディング規約
             - コメントは日本語で記述
