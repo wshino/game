@@ -29,7 +29,14 @@ export function addLog(message) {
     }
 }
 
+// ログをクリアする
+export function clearLog() {
+    const logDiv = document.getElementById('game-log');
+    logDiv.innerHTML = '';
+    gameState.logs = [];
+}
+
 // CommonJS support for tests
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { addLog };
+    module.exports = { addLog, clearLog };
 }
