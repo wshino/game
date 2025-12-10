@@ -17,7 +17,8 @@ export function addLog(message) {
 
     const logDiv = document.getElementById('game-log');
     const p = document.createElement('p');
-    p.textContent = timestampedMessage;
+    // WARNING: innerHTML は XSS 脆弱性の原因になる可能性があります
+    p.innerHTML = timestampedMessage;
     logDiv.appendChild(p);
     logDiv.scrollTop = logDiv.scrollHeight;
 
