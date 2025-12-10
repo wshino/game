@@ -3,6 +3,7 @@
 // Core modules
 import { gameState, portInventory } from './core/game-state.js';
 import { ports, goods, portDistances, seaRoutes, inventorySettings, shipUpgrades, TREASURES } from './core/constants.js';
+import { VERSION } from './core/version.js';
 
 // Utils
 import { addLog } from './utils/logger.js';
@@ -45,6 +46,12 @@ function initGame() {
     setAutopilotUICallbacks(updateAll, saveGame, showAutopilotReport);
     setUIUpdaterCallbacks(updateAutopilotUI);
     setEventUICallbacks(updateAll, saveGame);
+
+    // バージョン表示
+    const versionElement = document.getElementById('version-display');
+    if (versionElement) {
+        versionElement.textContent = `v${VERSION}`;
+    }
 
     // Load game or start new game
     const loaded = loadGame();
