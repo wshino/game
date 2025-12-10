@@ -78,7 +78,9 @@ jobs:
       - name: Create implementation issue
         if: steps.detect.outputs.skip != 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PATを使用することで、作成されたIssueが別のワークフロー(Claude Assistant)をトリガーできる
+          # GITHUB_TOKENだとセキュリティ制限により別ワークフローがトリガーされない
+          GH_TOKEN: ${{ secrets.PAT }}
           FEATURE: ${{ steps.detect.outputs.feature_name }}
           SPEC_PATH: ${{ steps.detect.outputs.spec_path }}
           COMMIT_SHA: ${{ github.sha }}
