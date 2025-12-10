@@ -1,0 +1,82 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    # ドラフトPRはスキップ、botが作ったPRも対象
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run tests first
+        id: test
+        run: |
+          npm test && echo "test_passed=true" >> $GITHUB_OUTPUT || echo "test_passed=false" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          prompt: |
+            # PRレビュー依頼
+
+            このPRをレビューしてください。
+
+            ## テスト結果
+            テスト: ${{ steps.test.outputs.test_passed == 'true' && '✅ パス' || '❌ 失敗' }}
+
+            ## レビュー観点
+
+            1. **機能性**: 意図した通りに動作するか
+            2. **コード品質**: 読みやすく保守しやすいか
+            3. **セキュリティ**: 脆弱性がないか
+            4. **パフォーマンス**: 効率的な実装か
+            5. **テスト**: 十分なテストがあるか
+
+            ## プロジェクト規約
+
+            - コメントは日本語
+            - Vanilla JavaScript (ES6+)
+            - `openspec/project.md` の規約に従っているか確認
+
+            ## 出力形式
+
+            レビュー結果を以下の形式でPRにコメントしてください:
+
+            ### 📋 レビューサマリー
+            [全体的な評価]
+
+            ### ✅ 良い点
+            [良い点をリスト]
+
+            ### 🔧 改善提案
+            [改善が必要な点をリスト]
+
+            ### 🚨 必須修正
+            [修正が必要な問題があれば記載]
+
+            ---
+
+            問題がなければ `LGTM` 、修正が必要なら具体的な修正箇所を指摘してください。
+
+          allowed_tools: "Read,Glob,Grep"
+          timeout_minutes: 15

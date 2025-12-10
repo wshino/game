@@ -1,0 +1,132 @@
+name: Spec Implementation
+
+# Spec がマージされたら実装用のIssueを自動作成
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'openspec/changes/**/proposal.md'
+      - 'openspec/changes/**/tasks.md'
+      - 'openspec/changes/**/specs/**'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  create-implementation-issue:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed spec
+        id: detect
+        run: |
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD -- 'openspec/changes/')
+          SPEC_PATH=$(echo "$CHANGED_FILES" | grep -oE 'openspec/changes/[^/]+' | head -1)
+
+          if [ -z "$SPEC_PATH" ]; then
+            echo "No spec path found"
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          FEATURE_NAME=$(basename "$SPEC_PATH")
+          echo "spec_path=$SPEC_PATH" >> $GITHUB_OUTPUT
+          echo "feature_name=$FEATURE_NAME" >> $GITHUB_OUTPUT
+          echo "skip=false" >> $GITHUB_OUTPUT
+
+          echo "Detected spec: $SPEC_PATH"
+          echo "Feature: $FEATURE_NAME"
+
+      - name: Read spec content
+        if: steps.detect.outputs.skip != 'true'
+        id: spec
+        run: |
+          SPEC_PATH="${{ steps.detect.outputs.spec_path }}"
+
+          # proposal.mdの内容を取得
+          PROPOSAL=""
+          if [ -f "$SPEC_PATH/proposal.md" ]; then
+            PROPOSAL=$(cat "$SPEC_PATH/proposal.md")
+          fi
+
+          # tasks.mdの内容を取得
+          TASKS=""
+          if [ -f "$SPEC_PATH/tasks.md" ]; then
+            TASKS=$(cat "$SPEC_PATH/tasks.md")
+          fi
+
+          # 環境変数として出力
+          {
+            echo "proposal<<PROPOSAL_EOF"
+            echo "$PROPOSAL"
+            echo "PROPOSAL_EOF"
+          } >> $GITHUB_OUTPUT
+
+          {
+            echo "tasks<<TASKS_EOF"
+            echo "$TASKS"
+            echo "TASKS_EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Create implementation issue
+        if: steps.detect.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FEATURE: ${{ steps.detect.outputs.feature_name }}
+          SPEC_PATH: ${{ steps.detect.outputs.spec_path }}
+          COMMIT_SHA: ${{ github.sha }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          PROPOSAL: ${{ steps.spec.outputs.proposal }}
+          TASKS: ${{ steps.spec.outputs.tasks }}
+        run: |
+          # 既存のIssueをチェック
+          EXISTING=$(gh issue list --label "auto-implement" --search "$FEATURE" --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            echo "Issue already exists: #$EXISTING"
+            exit 0
+          fi
+
+          # Issue本文を作成
+          BODY=$(cat <<EOF
+          ## 実装依頼
+
+          Specがマージされました。以下の仕様に基づいて実装してください。
+
+          ## Spec
+          - パス: \`${SPEC_PATH}\`
+          - コミット: ${COMMIT_SHA}
+
+          ## Proposal
+
+          ${PROPOSAL}
+
+          ## Tasks
+
+          ${TASKS}
+
+          ---
+
+          @claude このSpecに基づいて実装してください。
+
+          1. まず \`openspec/project.md\` と \`openspec/AGENTS.md\` を読んでください
+          2. \`${SPEC_PATH}/\` 配下のファイルを全て確認してください
+          3. tasks.md のタスクを順番に実装してください
+          4. 実装が完了したら \`npm test\` でテストを実行してください
+          5. テストが通ったらPRを作成してください
+
+          **不明点があれば実装を止めてこのIssueにコメントしてください。**
+          EOF
+          )
+
+          gh issue create \
+            --title "feat: $FEATURE の実装" \
+            --label "auto-implement" \
+            --assignee "$REPO_OWNER" \
+            --body "$BODY"
