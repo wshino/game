@@ -1,3 +1,4 @@
+import { ports } from '../core/constants.js';
 import { gameState } from '../core/game-state.js';
 
 // Add log message to game log
@@ -8,8 +9,11 @@ export function addLog(message) {
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const timestamp = `[${hours}:${minutes}]`;
     
-    // タイムスタンプをメッセージに追加
-    const timestampedMessage = `${timestamp} ${message}`;
+    // 現在地の港絵文字を取得
+    const portEmoji = ports[gameState.currentPort]?.emoji || '';
+    
+    // タイムスタンプと港絵文字をメッセージに追加
+    const timestampedMessage = `${timestamp} ${portEmoji} ${message}`;
 
     const logDiv = document.getElementById('game-log');
     const p = document.createElement('p');
