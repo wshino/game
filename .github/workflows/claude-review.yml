@@ -83,4 +83,6 @@ jobs:
             問題がなければ `[LGTM]` 、修正が必要なら具体的な修正箇所を指摘し `[REQUIRES_FIX]` を含めてください。
 
           allowed_tools: "Read,Glob,Grep"
+          # Claude Assistant がプッシュした変更も再レビューできるようにする
+          allowed_bots: "claude"
           timeout_minutes: 15
