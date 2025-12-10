@@ -17,7 +17,7 @@ export function addLog(message) {
 
     const logDiv = document.getElementById('game-log');
     const p = document.createElement('p');
-    p.innerHTML = timestampedMessage;
+    p.textContent = timestampedMessage;
     logDiv.appendChild(p);
     logDiv.scrollTop = logDiv.scrollHeight;
 
