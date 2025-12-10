@@ -7,6 +7,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  id-token: write
 
 jobs:
   review:
@@ -36,7 +37,8 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
-          prompt: |
+          # custom_instructions を使用 (prompt は deprecated)
+          custom_instructions: |
             # PRレビュー依頼
 
             このPRをレビューしてください。
