@@ -28,12 +28,11 @@ jobs:
     # 実行条件:
     # 1. auto-implementラベル付きIssue作成時
     # 2. @claudeメンション時 (Bot以外)
-    # 3. PRコメントに「必須修正」が含まれ、かつ「LGTM」や「修正が必要な問題はありません」を含まない場合
-    #    (レビューボットの指摘に自動対応)
+    # 3. PRコメントに「[REQUIRES_FIX]」マーカーが含まれる場合 (レビューボットの指摘に自動対応)
     if: |
       (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'auto-implement')) ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.type != 'Bot') ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '必須修正') && !contains(github.event.comment.body, '修正が必要な問題はありません') && !contains(github.event.comment.body, 'LGTM') && !contains(github.event.comment.body, '修正完了')) ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '[REQUIRES_FIX]')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
     runs-on: ubuntu-latest
