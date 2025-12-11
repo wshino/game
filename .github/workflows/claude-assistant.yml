@@ -25,6 +25,12 @@ permissions:
   issues: write
   id-token: write
 
+# 同じPR/Issueへの重複実行を防止 (トークン節約)
+# cancel-in-progress: false で複数Proposalが同時マージされても全て実行される
+concurrency:
+  group: claude-assistant-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
 jobs:
   # ジョブ1: @claudeメンションやauto-implementラベル付きIssueに対応
   claude-response:
