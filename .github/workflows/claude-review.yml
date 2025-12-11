@@ -9,6 +9,12 @@ permissions:
   pull-requests: write
   id-token: write
 
+# 同じPRへの重複レビューを防止 (トークン節約)
+# cancel-in-progress: false で複数PRが同時作成されても全てレビューされる
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
   review:
     # ドラフトPRはスキップ、botが作ったPRも対象
