@@ -63,6 +63,11 @@ permissions:
   pull-requests: write
   id-token: write
 
+# Prevent duplicate reviews on the same PR (saves API tokens)
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
   review:
     if: github.event.pull_request.draft == false
@@ -161,6 +166,11 @@ permissions:
   pull-requests: write
   issues: write
   id-token: write
+
+# Prevent duplicate executions on the same PR/Issue (saves API tokens)
+concurrency:
+  group: claude-assistant-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   # Job 1: Handle @claude mentions and auto-implement labels
@@ -323,6 +333,23 @@ Required for OIDC token authentication with the Claude Code Action.
 | `[REQUIRES_FIX]` | Issues need fixing | Triggers auto-fix job |
 | `[LGTM]` | Approved | Loop ends |
 
+### 6. Concurrency Control (Token Savings)
+
+```yaml
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+```
+
+**Why?** Claude Review streams its output, causing multiple `edited` events. Without concurrency control, each event triggers a new workflow run, wasting API tokens.
+
+| Setting | Effect |
+|---------|--------|
+| `group` | Groups by PR/Issue number (different PRs run in parallel) |
+| `cancel-in-progress: false` | Queue duplicates instead of cancelling (all requests eventually processed) |
+
+**Important**: Use `cancel-in-progress: false` to ensure multiple Proposals merged simultaneously all get processed.
+
 ---
 
 ## How It Works
@@ -414,6 +441,7 @@ These PRs implemented this feature in the game repository:
 | #101 | Add `edited` event type for streaming support |
 | #103 | Add `allowed_bots` to assistant workflow |
 | #105 | Add `allowed_bots` to review workflow |
+| #108 | Add concurrency control for token savings |
 
 ---
 
@@ -425,6 +453,7 @@ These PRs implemented this feature in the game repository:
 - [ ] Verify `allowed_bots: "claude"` in both workflows
 - [ ] Verify `id-token: write` permission in both workflows
 - [ ] Verify `edited` in `issue_comment` types
+- [ ] Verify `concurrency` blocks in both workflows (token savings)
 - [ ] Test with a PR containing an intentional issue
 
 ---
