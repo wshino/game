@@ -22,34 +22,34 @@ The loop continues until all issues are resolved.
 
 ---
 
-## Prerequisites
+## Step-by-Step Setup
 
-### 1. GitHub Secrets
+Follow these steps in order to set up the Auto Review-Fix Loop in your repository.
 
-Add these secrets to your repository (Settings → Secrets and variables → Actions):
+### Step 1: Get Anthropic API Key
 
-| Secret Name | Description |
-|-------------|-------------|
-| `ANTHROPIC_API_KEY` | Your Anthropic API key |
-| `PAT` | Personal Access Token (for spec-driven automation, optional) |
+1. Go to https://console.anthropic.com
+2. Sign up or log in
+3. Navigate to **API Keys** section
+4. Click **Create Key**
+5. Copy the generated key (starts with `sk-ant-`)
 
-### 2. Repository Labels (Optional)
+> **Note**: You need API credits to use Claude Code Action. Check your balance at the Anthropic Console.
 
-For spec-driven automation, create this label:
+### Step 2: Add GitHub Secret
 
-| Label | Description | Color |
-|-------|-------------|-------|
-| `auto-implement` | Triggers auto-implementation | `#0E8A16` |
+1. Go to your GitHub repository
+2. Click **Settings** tab
+3. In the left sidebar, click **Secrets and variables** → **Actions**
+4. Click **New repository secret**
+5. Set:
+   - **Name**: `ANTHROPIC_API_KEY`
+   - **Secret**: Paste your API key from Step 1
+6. Click **Add secret**
 
----
+### Step 3: Create Claude Review Workflow
 
-## Workflow Files
-
-Create two workflow files in `.github/workflows/`:
-
-### 1. Claude Code Review (`claude-review.yml`)
-
-This workflow automatically reviews PRs when created or updated.
+Create the file `.github/workflows/claude-review.yml` with the following content:
 
 ```yaml
 name: Claude Code Review
@@ -61,7 +61,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  id-token: write
+  id-token: write  # Required for OIDC authentication
 
 # Prevent duplicate reviews on the same PR (saves API tokens)
 concurrency:
@@ -127,22 +127,28 @@ jobs:
 
             ### Required Fixes
             [Critical issues that must be fixed]
-            **IMPORTANT**: If fixes are required, include `[REQUIRES_FIX]` at the end.
-            If no issues, include `[LGTM]` at the end.
 
             ---
 
-            End with `[LGTM]` if approved, or `[REQUIRES_FIX]` if changes needed.
+            **IMPORTANT**: End your review with one of these markers:
+            - `[LGTM]` - If approved, no issues found
+            - `[REQUIRES_FIX]` - If changes are needed
 
           allowed_tools: "Read,Glob,Grep"
-          # Allow bot-pushed changes to trigger re-review
-          allowed_bots: "claude"
+          allowed_bots: "claude"  # Allow re-review after bot push
           timeout_minutes: 15
 ```
 
-### 2. Claude Assistant (`claude-assistant.yml`)
+**Key points in this file:**
+- `direct_prompt`: Forces automatic execution (no @claude mention needed)
+- `id-token: write`: Required for OIDC authentication
+- `allowed_bots: "claude"`: Enables re-review after Claude pushes fixes
+- `concurrency`: Prevents duplicate runs, saves API tokens
+- Markers: `[REQUIRES_FIX]` triggers auto-fix, `[LGTM]` ends the loop
 
-This workflow handles manual @claude mentions and automatic fixes.
+### Step 4: Create Claude Assistant Workflow
+
+Create the file `.github/workflows/claude-assistant.yml` with the following content:
 
 ```yaml
 name: Claude Assistant
@@ -152,6 +158,7 @@ on:
     types: [opened, assigned, labeled]
 
   # Include 'edited' for streaming comment updates
+  # Claude Review streams output, adding [REQUIRES_FIX] after initial post
   issue_comment:
     types: [created, edited]
 
@@ -165,7 +172,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
-  id-token: write
+  id-token: write  # Required for OIDC authentication
 
 # Prevent duplicate executions on the same PR/Issue (saves API tokens)
 concurrency:
@@ -232,7 +239,7 @@ jobs:
           allowed_tools: "Bash,Read,Write,Edit,Glob,Grep,Bash(gh:*)"
           timeout_minutes: 30
 
-  # Job 2: Auto-fix from [REQUIRES_FIX] marker
+  # Job 2: Auto-fix from [REQUIRES_FIX] marker (fully automatic)
   auto-fix-review:
     if: |
       github.event_name == 'issue_comment' &&
@@ -266,7 +273,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
-          # direct_prompt bypasses mode:tag check
+          # direct_prompt bypasses mode:tag check for automatic execution
           direct_prompt: |
             Fix the required issues marked with [REQUIRES_FIX] in the review.
 
@@ -287,111 +294,135 @@ jobs:
             - Write clean, readable code
 
           allowed_tools: "Bash,Read,Write,Edit,Glob,Grep,Bash(gh:*)"
-          # Allow Claude Review Bot comments to trigger this job
-          allowed_bots: "claude"
+          allowed_bots: "claude"  # Allow Claude Review Bot to trigger this job
           timeout_minutes: 30
 ```
 
----
+**Key points in this file:**
+- **Two jobs**: `claude-response` (manual @claude) and `auto-fix-review` (automatic)
+- `issue_comment: [created, edited]`: `edited` catches streaming comment updates
+- `direct_prompt` in auto-fix job: Bypasses trigger requirement for automatic execution
+- `allowed_bots: "claude"`: Allows Claude Review's comments to trigger auto-fix
+- `concurrency`: Prevents duplicate runs from streaming events
 
-## Key Configuration Points
+### Step 5: Commit and Push
 
-### 1. `direct_prompt` vs `custom_instructions`
-
-| Parameter | Usage |
-|-----------|-------|
-| `direct_prompt` | Forces immediate execution without trigger |
-| `custom_instructions` | Additional context, requires trigger (@claude or label) |
-
-Use `direct_prompt` for:
-- Automatic review on PR creation
-- Automatic fix on `[REQUIRES_FIX]` marker
-
-### 2. `allowed_bots: "claude"`
-
-**Required in both workflows** to enable the loop:
-- In `claude-review.yml`: Allows re-review of bot-pushed changes
-- In `claude-assistant.yml`: Allows response to bot-posted review comments
-
-### 3. `issue_comment` Event Types
-
-```yaml
-issue_comment:
-  types: [created, edited]  # Include 'edited'!
+```bash
+git add .github/workflows/claude-review.yml .github/workflows/claude-assistant.yml
+git commit -m "ci: add Claude auto review-fix workflows"
+git push
 ```
 
-**Why `edited`?** Claude Review streams its output, updating the comment multiple times. The `[REQUIRES_FIX]` marker may not be present in the initial `created` event.
+### Step 6: Test the Setup
 
-### 4. `id-token: write` Permission
+1. Create a new branch:
+   ```bash
+   git checkout -b test/review-fix-loop
+   ```
 
-Required for OIDC token authentication with the Claude Code Action.
+2. Make a small change with an intentional issue (e.g., XSS vulnerability):
+   ```javascript
+   // BAD: XSS vulnerability for testing
+   element.innerHTML = userInput;
+   ```
 
-### 5. Markers
+3. Commit and push:
+   ```bash
+   git add .
+   git commit -m "test: add intentional issue for review test"
+   git push -u origin test/review-fix-loop
+   ```
 
-| Marker | Meaning | Action |
-|--------|---------|--------|
-| `[REQUIRES_FIX]` | Issues need fixing | Triggers auto-fix job |
-| `[LGTM]` | Approved | Loop ends |
+4. Create a Pull Request on GitHub
 
-### 6. Concurrency Control (Token Savings)
+5. Watch the automation:
+   - Claude Review automatically runs and posts a comment
+   - If issues found → `[REQUIRES_FIX]` marker triggers auto-fix
+   - Claude fixes the code and pushes
+   - Re-review runs → `[LGTM]` when all issues resolved
 
-```yaml
-concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
-```
+### Step 7: Verify Success
 
-**Why?** Claude Review streams its output, causing multiple `edited` events. Without concurrency control, each event triggers a new workflow run, wasting API tokens.
-
-| Setting | Effect |
-|---------|--------|
-| `group` | Groups by PR/Issue number (different PRs run in parallel) |
-| `cancel-in-progress: false` | Queue duplicates instead of cancelling (all requests eventually processed) |
-
-**Important**: Use `cancel-in-progress: false` to ensure multiple Proposals merged simultaneously all get processed.
+Check that:
+- [ ] Claude Review posted a comment on the PR
+- [ ] Auto-fix job ran (if issues were found)
+- [ ] Code was fixed and pushed by `github-actions[bot]`
+- [ ] Re-review posted `[LGTM]` (if all issues resolved)
 
 ---
 
 ## How It Works
 
-### Step-by-Step Flow
+### Flow Diagram
 
-1. **PR Created** → `pull_request.opened` triggers Claude Review
-2. **Review Posted** → Claude analyzes code and posts comment
-3. **Issues Found** → Comment includes `[REQUIRES_FIX]` marker
-4. **Comment Created/Edited** → `issue_comment.created/edited` triggers auto-fix
-5. **Auto-Fix Runs** → Claude fixes issues and pushes
-6. **Re-Review** → `pull_request.synchronize` triggers Claude Review again
-7. **Repeat** → Until `[LGTM]` is posted
+```
+1. PR Created
+   └─→ pull_request.opened triggers Claude Review
+
+2. Claude Review runs
+   └─→ Posts comment with [REQUIRES_FIX] or [LGTM]
+
+3. If [REQUIRES_FIX]:
+   └─→ issue_comment.created/edited triggers auto-fix-review job
+   └─→ Claude fixes issues, runs tests, commits, pushes
+
+4. Push triggers re-review
+   └─→ pull_request.synchronize triggers Claude Review
+   └─→ allowed_bots: "claude" allows bot-pushed changes
+
+5. Repeat until [LGTM]
+```
+
+### Why Each Setting Matters
+
+| Setting | Purpose |
+|---------|---------|
+| `direct_prompt` | Forces execution without @claude trigger |
+| `allowed_bots: "claude"` | Allows bot-to-bot interaction (review → fix → re-review) |
+| `issue_comment: [created, edited]` | Catches streaming updates with markers |
+| `id-token: write` | Required for OIDC authentication |
+| `concurrency` | Prevents duplicate API calls from streaming events |
 
 ### Preventing Infinite Loops
 
 The loop naturally ends when:
 - No `[REQUIRES_FIX]` marker → auto-fix job doesn't trigger
-- `[LGTM]` marker → indicates approval
+- `[LGTM]` marker → indicates approval, loop complete
 
 ---
 
 ## Troubleshooting
 
-### Issue: "Workflow initiated by non-human actor"
+### "Workflow initiated by non-human actor"
 
-**Solution**: Add `allowed_bots: "claude"` to the workflow
+**Cause**: Claude Code Action blocks bot-initiated triggers by default.
 
-### Issue: Auto-fix not triggering on review comment
+**Solution**: Add `allowed_bots: "claude"` to the workflow.
+
+### Auto-fix not triggering on review comment
 
 **Check**:
-1. Does the comment contain `[REQUIRES_FIX]`?
-2. Is `edited` event type included?
-3. Is `allowed_bots: "claude"` set?
+1. Does the comment contain `[REQUIRES_FIX]`? (exact match required)
+2. Is `edited` included in `issue_comment` types?
+3. Is `allowed_bots: "claude"` set in `claude-assistant.yml`?
 
-### Issue: "Credit balance is too low"
+### "Credit balance is too low"
 
-**Solution**: Add credits to your Anthropic account at https://console.anthropic.com
+**Cause**: Anthropic API credits exhausted.
 
-### Issue: Review not posting after bot push
+**Solution**: Add credits at https://console.anthropic.com
+
+### Review not posting after bot push
+
+**Cause**: Bot-pushed changes blocked by default.
 
 **Solution**: Add `allowed_bots: "claude"` to `claude-review.yml`
+
+### Too many workflow runs (token waste)
+
+**Cause**: Streaming comments trigger multiple `edited` events.
+
+**Solution**: Add `concurrency` block to both workflows (already included in templates above).
 
 ---
 
@@ -402,73 +433,95 @@ Each loop iteration uses API credits:
 - Auto-fix: ~1-3 API calls (depending on complexity)
 - Re-review: ~1 API call
 
-For complex PRs with multiple fix iterations, costs can add up. Consider:
-- Setting appropriate `timeout_minutes`
-- Reviewing API usage in Anthropic Console
+Tips to manage costs:
+- Set appropriate `timeout_minutes`
+- Use `concurrency` to prevent duplicate runs
+- Review API usage in Anthropic Console
 
 ---
 
 ## Customization
 
+### Changing Review Criteria
+
+Edit the `direct_prompt` in `claude-review.yml`:
+
+```yaml
+direct_prompt: |
+  Please review this PR focusing on:
+  - Security vulnerabilities (CRITICAL)
+  - Performance issues
+  - Code style (follow our style guide)
+
+  Ignore:
+  - Minor formatting issues
+  - package-lock.json changes
+```
+
 ### Adding Project-Specific Instructions
 
-Modify the `custom_instructions` or `direct_prompt` to include:
-- Coding standards
-- Project conventions
-- Specific review criteria
-- Language preferences (e.g., Japanese comments)
+Edit `custom_instructions` in `claude-assistant.yml`:
 
-### Excluding Certain Files
+```yaml
+custom_instructions: |
+  ## Project Rules
+  - Use TypeScript strict mode
+  - All functions must have JSDoc comments
+  - Follow our naming conventions
+```
 
-Add to review prompt:
+### Using Different Languages
+
+For Japanese projects:
+
+```yaml
+direct_prompt: |
+  このPRをレビューしてください。
+
+  ## 出力形式
+  - コメントは日本語で記述
+  - 問題があれば `[REQUIRES_FIX]` を含める
+  - 問題なければ `[LGTM]` を含める
 ```
-Ignore changes to:
-- package-lock.json
-- *.min.js
-- dist/
-```
+
+---
+
+## Quick Reference
+
+### Required Secrets
+
+| Secret | Required | Purpose |
+|--------|----------|---------|
+| `ANTHROPIC_API_KEY` | Yes | Claude API authentication |
+| `PAT` | No | Only for spec-driven automation |
+
+### Markers
+
+| Marker | Meaning | Action |
+|--------|---------|--------|
+| `[REQUIRES_FIX]` | Issues need fixing | Triggers auto-fix job |
+| `[LGTM]` | Approved | Loop ends |
+
+### Key Configuration Checklist
+
+- [ ] `ANTHROPIC_API_KEY` secret added
+- [ ] `id-token: write` permission in both workflows
+- [ ] `allowed_bots: "claude"` in both workflows
+- [ ] `edited` in `issue_comment` types
+- [ ] `concurrency` blocks in both workflows
+- [ ] `direct_prompt` for automatic execution jobs
 
 ---
 
 ## Related PRs (Reference Implementation)
 
-These PRs implemented this feature in the game repository:
+These PRs implemented this feature in the wshino/game repository:
 
 | PR | Description |
 |----|-------------|
-| #97 | Add `[REQUIRES_FIX]` marker |
+| #97 | Add `[REQUIRES_FIX]` / `[LGTM]` markers |
 | #99 | Split auto-fix into separate job with `direct_prompt` |
 | #101 | Add `edited` event type for streaming support |
 | #103 | Add `allowed_bots` to assistant workflow |
 | #105 | Add `allowed_bots` to review workflow |
 | #108 | Add concurrency control for token savings |
-
----
-
-## Quick Start Checklist
-
-- [ ] Add `ANTHROPIC_API_KEY` to repository secrets
-- [ ] Create `.github/workflows/claude-review.yml`
-- [ ] Create `.github/workflows/claude-assistant.yml`
-- [ ] Verify `allowed_bots: "claude"` in both workflows
-- [ ] Verify `id-token: write` permission in both workflows
-- [ ] Verify `edited` in `issue_comment` types
-- [ ] Verify `concurrency` blocks in both workflows (token savings)
-- [ ] Test with a PR containing an intentional issue
-
----
-
-## Example Test
-
-1. Create a branch with an intentional security issue:
-   ```javascript
-   // BAD: XSS vulnerability
-   element.innerHTML = userInput;
-   ```
-
-2. Open a PR
-
-3. Watch the magic:
-   - Claude Review detects XSS → `[REQUIRES_FIX]`
-   - Auto-fix changes to `textContent`
-   - Re-review confirms → `[LGTM]`
