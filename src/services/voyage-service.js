@@ -4,6 +4,7 @@ import { addLog } from '../utils/logger.js';
 import { refreshPortInventory } from './port-service.js';
 import { calculateRequiredSupplies, hasEnoughSupplies, consumeSupplies, autoSupplyForVoyage } from './supply-service.js';
 import { checkForRandomEvent, processEventChoice, showEventModal, showEventResultModal, getEffectiveSpeed, applyDurabilityDamage } from './event-service.js';
+import { checkForDisaster, triggerDisaster, updateDisasters, getActiveDisaster } from './disaster-service.js';
 
 // UI callback functions
 let updateAll;
@@ -652,6 +653,16 @@ export function completeVoyageCore(destinationPortId, actualDays) {
     // Refresh port inventories
     refreshPortInventory(actualDays);
 
+    // Update existing disasters and check for new ones
+    updateDisasters(actualDays);
+    checkAndTriggerDisasters(actualDays);
+
+    // Check if destination port has a disaster
+    const disaster = getActiveDisaster(destinationPortId);
+    if (disaster) {
+        addLog(`${disaster.info.emoji} ${newPort}は${disaster.info.name}の被害を受けている！価格が高騰中...`);
+    }
+
     // Clear voyage state
     gameState.isVoyaging = false;
     gameState.voyageStartTime = null;
@@ -667,6 +678,16 @@ export function completeVoyageCore(destinationPortId, actualDays) {
     addLog(`📅 現在の日数: ${gameState.gameTime}日目`);
 
     return { oldPort, newPort };
+}
+
+// Check and trigger disasters for all ports based on time passed
+export function checkAndTriggerDisasters(daysPassed) {
+    for (const portId of Object.keys(ports)) {
+        const disasterType = checkForDisaster(portId, daysPassed);
+        if (disasterType) {
+            triggerDisaster(portId, disasterType);
+        }
+    }
 }
 
 // Complete voyage and update game state

@@ -1,5 +1,6 @@
 import { portInventory } from '../core/game-state.js';
 import { ports, inventorySettings, goods } from '../core/constants.js';
+import { getDisasterStockMultiplier } from './disaster-service.js';
 
 // Initialize port inventory for all ports
 export function initializePortInventory() {
@@ -22,10 +23,15 @@ export function refreshPortInventory(daysPassed) {
         const refreshRate = inventorySettings[portSize].refreshRate;
         const maxStock = inventorySettings[portSize].maxStock;
 
+        // Get disaster stock recovery multiplier (reduced during disasters)
+        const disasterMult = getDisasterStockMultiplier(portId);
+
         for (const goodId in portInventory[portId]) {
+            // Apply disaster multiplier to recovery rate
+            const effectiveRefreshRate = refreshRate * disasterMult;
             const recovered = Math.min(
                 maxStock,
-                portInventory[portId][goodId] + (refreshRate * daysPassed)
+                portInventory[portId][goodId] + (effectiveRefreshRate * daysPassed)
             );
             portInventory[portId][goodId] = Math.round(recovered);
         }

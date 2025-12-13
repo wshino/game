@@ -1,5 +1,6 @@
 import { gameState } from '../core/game-state.js';
 import { ports, goods, portPrices, portDistances } from '../core/constants.js';
+import { getDisasterPriceMultiplier } from '../services/disaster-service.js';
 
 // Get current port name
 export function getCurrentPortName() {
@@ -25,7 +26,9 @@ export function getPrice(goodId, isBuying = true, portId = null) {
     const basePrice = good.basePrice * multiplier;
     // Add some randomness (±10%)
     const randomFactor = 0.9 + Math.random() * 0.2;
-    const price = Math.round(basePrice * randomFactor);
+    // Apply disaster price multiplier (prices increase during disasters)
+    const disasterMultiplier = getDisasterPriceMultiplier(targetPort);
+    const price = Math.round(basePrice * randomFactor * disasterMultiplier);
     // Add markup for buying
     return isBuying ? price : Math.round(price * 0.8);
 }
@@ -35,15 +38,19 @@ export function calculateProfitForPort(destinationPortId, getPortStockFunc) {
     const profits = [];
     const currentPort = gameState.currentPort;
 
+    // Get disaster multipliers for both ports
+    const currentDisasterMult = getDisasterPriceMultiplier(currentPort);
+    const destDisasterMult = getDisasterPriceMultiplier(destinationPortId);
+
     for (const [goodId, good] of Object.entries(goods)) {
         // Skip supplies
         if (goodId === 'food' || goodId === 'water') continue;
 
-        // Calculate buy price at current port
-        const buyPrice = Math.round(good.basePrice * portPrices[currentPort][goodId] * 0.95);
+        // Calculate buy price at current port (including disaster effect)
+        const buyPrice = Math.round(good.basePrice * portPrices[currentPort][goodId] * 0.95 * currentDisasterMult);
 
-        // Calculate sell price at destination port
-        const sellPrice = Math.round(good.basePrice * portPrices[destinationPortId][goodId] * 0.95);
+        // Calculate sell price at destination port (including disaster effect)
+        const sellPrice = Math.round(good.basePrice * portPrices[destinationPortId][goodId] * 0.95 * destDisasterMult);
 
         const profitPerUnit = sellPrice - buyPrice;
         const profitMargin = buyPrice > 0 ? (profitPerUnit / buyPrice) * 100 : 0;

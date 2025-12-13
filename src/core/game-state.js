@@ -72,6 +72,18 @@ export const gameState = {
         investor: false,           // 投資家 (全港に少なくとも1つの施設)
         portRuler: false           // 港の支配者 (1つの港で名声レベル最大)
     },
+    // Natural disasters at ports
+    // Each port can have at most one active disaster
+    // Format: { type: 'earthquake', startDay: 100, remainingDays: 10 }
+    portDisasters: {
+        lisbon: null,
+        seville: null,
+        venice: null,
+        alexandria: null,
+        calicut: null,
+        malacca: null,
+        nagasaki: null
+    },
     // Statistics tracking
     statistics: {
         totalGoldEarned: 0,        // 累計獲得金額
@@ -101,7 +113,9 @@ export const gameState = {
         eventsEncountered: 0,      // 遭遇したイベント数
         piratesDefeated: 0,        // 倒した海賊数
         castawaysRescued: 0,       // 救助した漂流者数
-        treasuresFound: 0          // 発見したお宝数
+        treasuresFound: 0,         // 発見したお宝数
+        // Disaster statistics
+        disastersWitnessed: 0      // 目撃した天災数
     }
 };
 

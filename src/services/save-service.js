@@ -2,7 +2,8 @@ import { gameState, portInventory } from '../core/game-state.js';
 import { ports, shipUpgrades, inventorySettings, goods } from '../core/constants.js';
 import { addLog } from '../utils/logger.js';
 import { initializePortInventory, refreshPortInventory } from './port-service.js';
-import { completeVoyageCore } from './voyage-service.js';
+import { completeVoyageCore, checkAndTriggerDisasters } from './voyage-service.js';
+import { updateDisasters, getActiveDisaster } from './disaster-service.js';
 import {
     simulateOfflineAutopilot,
     runAutopilotCycle,
@@ -392,9 +393,20 @@ export function restOneDay() {
     // Refresh port inventory
     refreshPortInventory(1);
 
+    // Update existing disasters and check for new ones
+    updateDisasters(1);
+    checkAndTriggerDisasters(1);
+
+    // Check if current port has a disaster
+    const disaster = getActiveDisaster(gameState.currentPort);
+
     // Add log
     addLog(`🌙 1日休息しました（${gameState.gameTime}日目）`);
     addLog(`✨ 港の在庫が補充されました`);
+
+    if (disaster) {
+        addLog(`${disaster.info.emoji} この港は${disaster.info.name}の被害を受けている（残り${disaster.remainingDays}日）`);
+    }
 
     // Update UI
     if (updateAll) {
