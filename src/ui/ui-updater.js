@@ -5,6 +5,7 @@ import { getPortStock } from '../services/port-service.js';
 import { calculateRequiredSupplies, hasEnoughSupplies } from '../services/supply-service.js';
 import { saveGameDebounced } from '../services/save-service.js';
 import { useTreasure, repairShip } from '../services/event-service.js';
+import { getActiveDisaster, getAllActiveDisasters } from '../services/disaster-service.js';
 
 // Callback functions that will be set from main game file
 let updateAutopilotUI;
@@ -31,6 +32,43 @@ export function updateStatusBar() {
 
     // Update durability display
     updateDurabilityDisplay();
+
+    // Update disaster display for current port
+    updateCurrentPortDisaster();
+}
+
+// Update disaster display for current port
+export function updateCurrentPortDisaster() {
+    const disasterContainer = document.getElementById('disaster-container');
+    if (!disasterContainer) return;
+
+    const disaster = getActiveDisaster(gameState.currentPort);
+    if (!disaster) {
+        disasterContainer.innerHTML = '';
+        disasterContainer.style.display = 'none';
+        return;
+    }
+
+    disasterContainer.style.display = 'block';
+    const recoveryPercent = Math.round((1 - disaster.remainingDays / disaster.info.duration) * 100);
+    const priceIncrease = Math.round((disaster.info.effects.priceMultiplier - 1) * 100);
+
+    disasterContainer.innerHTML = `
+        <div class="disaster-alert">
+            <div class="disaster-header">
+                <span class="disaster-emoji">${disaster.info.emoji}</span>
+                <span class="disaster-name">${disaster.info.name}</span>
+            </div>
+            <div class="disaster-desc">${disaster.info.description}</div>
+            <div class="disaster-effects">
+                <span>価格 +${priceIncrease}%</span>
+                <span>残り ${disaster.remainingDays}日</span>
+            </div>
+            <div class="disaster-recovery">
+                <div class="disaster-recovery-bar" style="width: ${recoveryPercent}%"></div>
+            </div>
+        </div>
+    `;
 }
 
 // Update ship durability display
@@ -323,6 +361,20 @@ export function updatePorts() {
 
         const isSelected = gameState.selectedDestination === portId;
 
+        // Check for disaster at this port
+        const disaster = getActiveDisaster(portId);
+        let disasterHTML = '';
+        if (disaster) {
+            const priceIncrease = Math.round((disaster.info.effects.priceMultiplier - 1) * 100);
+            disasterHTML = `
+                <div style="background: rgba(244, 67, 54, 0.1); padding: 6px 10px; border-radius: 5px; margin-top: 5px; border-left: 3px solid #f44336;">
+                    <span style="font-size: 0.85em; color: #d32f2f; font-weight: bold;">
+                        ${disaster.info.emoji} ${disaster.info.name} (価格+${priceIncrease}%, 残り${disaster.remainingDays}日)
+                    </span>
+                </div>
+            `;
+        }
+
         // Create recommended goods display
         let recommendedHTML = '';
         if (recommendedGoods.length > 0) {
@@ -348,6 +400,7 @@ export function updatePorts() {
                 <span style="font-size: 0.85em; color: #666; display: block; margin-top: 5px;">
                     必要物資: 🍖${required.food} 💧${required.water} | 日数: ${travelDays}日
                 </span>
+                ${disasterHTML}
                 ${recommendedHTML}
             </div>
             <button class="btn btn-travel" onclick="selectDestination('${portId}')" ${isSelected ? 'disabled' : ''}>
