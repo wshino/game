@@ -670,6 +670,58 @@ export const ACHIEVEMENTS = {
     }
 };
 
+// Natural Disaster definitions
+export const DISASTERS = {
+    earthquake: {
+        id: 'earthquake',
+        name: '大地震',
+        emoji: '🌋',
+        probability: 0.02, // 2% chance per day per port
+        duration: 10, // days to fully recover
+        effects: {
+            priceMultiplier: 1.5, // prices increase 50%
+            stockReduction: 0.5 // stocks reduced by 50%
+        },
+        description: '大地震が発生し、港が混乱している'
+    },
+    fire: {
+        id: 'fire',
+        name: '大火災',
+        emoji: '🔥',
+        probability: 0.03, // 3% chance per day per port
+        duration: 7,
+        effects: {
+            priceMultiplier: 1.3,
+            stockReduction: 0.3
+        },
+        description: '大火災が発生し、倉庫が焼失した'
+    },
+    tsunami: {
+        id: 'tsunami',
+        name: '津波',
+        emoji: '🌊',
+        probability: 0.015, // 1.5% chance per day per port
+        duration: 14,
+        effects: {
+            priceMultiplier: 1.8,
+            stockReduction: 0.7
+        },
+        description: '大津波が港を襲い、甚大な被害が出た'
+    },
+    plague: {
+        id: 'plague',
+        name: '疫病',
+        emoji: '☠️',
+        probability: 0.02,
+        duration: 21,
+        effects: {
+            priceMultiplier: 1.4,
+            stockReduction: 0.4
+        },
+        description: '疫病が蔓延し、商業活動が停滞している'
+    }
+};
+
 // CommonJS support for tests
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -688,6 +740,7 @@ if (typeof module !== 'undefined' && module.exports) {
         RANDOM_EVENTS,
         TREASURES,
         RARITY_CONFIG,
-        ACHIEVEMENTS
+        ACHIEVEMENTS,
+        DISASTERS
     };
 }

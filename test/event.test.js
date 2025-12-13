@@ -139,6 +139,8 @@ describe('Event Service', () => {
     describe('processEventChoice - Pirate', () => {
         test('海賊戦で勝利すると報酬を得る（不死鳥の羽あり）', () => {
             gameState.treasures.phoenixFeather = 1;
+            // Set combat power very low so player would lose without phoenix feather
+            gameState.ship.combatPower = -50;
             const initialGold = gameState.gold;
 
             const result = processEventChoice('pirate', 'fight');

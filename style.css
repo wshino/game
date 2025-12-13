@@ -981,3 +981,72 @@ header h1 {
 .btn-use-treasure:hover:not(:disabled) {
     background: linear-gradient(135deg, #7b1fa2 0%, #9c27b0 100%);
 }
+
+/* Disaster Alert Styles */
+#disaster-container {
+    margin-top: 15px;
+}
+
+.disaster-alert {
+    background: linear-gradient(135deg, rgba(244, 67, 54, 0.15) 0%, rgba(211, 47, 47, 0.2) 100%);
+    border: 2px solid #f44336;
+    border-radius: 12px;
+    padding: 15px 20px;
+    animation: disasterPulse 2s ease-in-out infinite;
+}
+
+@keyframes disasterPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(244, 67, 54, 0.3); }
+    50% { box-shadow: 0 0 25px rgba(244, 67, 54, 0.6); }
+}
+
+.disaster-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.disaster-emoji {
+    font-size: 1.8em;
+    animation: disasterShake 0.5s ease-in-out infinite;
+}
+
+@keyframes disasterShake {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+}
+
+.disaster-name {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #d32f2f;
+}
+
+.disaster-desc {
+    font-size: 0.95em;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.disaster-effects {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9em;
+    color: #d32f2f;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.disaster-recovery {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    height: 8px;
+    overflow: hidden;
+}
+
+.disaster-recovery-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #4caf50 0%, #8bc34a 100%);
+    transition: width 0.5s ease;
+}
