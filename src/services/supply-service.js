@@ -1,14 +1,20 @@
 import { gameState } from '../core/game-state.js';
-import { goods, portPrices } from '../core/constants.js';
+import { goods, portPrices, GAME_BALANCE } from '../core/constants.js';
 import { getPrice, getCargoSpace } from '../utils/calculations.js';
 import { getPortStock, reducePortStock } from './port-service.js';
 
 // Calculate required supplies for a voyage
 export function calculateRequiredSupplies(days) {
+    // Validate input - days must be a positive number
+    if (typeof days !== 'number' || days < 0 || !Number.isFinite(days)) {
+        return { food: 0, water: 0 };
+    }
+
     const crew = gameState.ship.crew;
+    const consumptionRate = GAME_BALANCE.SUPPLY_CONSUMPTION_PER_CREW;
     return {
-        food: Math.ceil(crew * days * 0.07), // 0.07 units per crew per day (balanced for better early game progression)
-        water: Math.ceil(crew * days * 0.07)
+        food: Math.ceil(crew * days * consumptionRate),
+        water: Math.ceil(crew * days * consumptionRate)
     };
 }
 

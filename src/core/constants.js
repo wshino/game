@@ -1,3 +1,31 @@
+// Game balance constants - extracted from magic numbers for maintainability
+export const GAME_BALANCE = {
+    // Event system
+    EVENT_BASE_PROBABILITY: 0.4,           // 40% base chance for random event per check
+    EVENT_LUCK_MAX_BONUS: 0.5,             // Maximum luck bonus from treasures
+    EVENT_LUCK_MAX_PENALTY: -0.1,          // Maximum luck penalty
+
+    // Supply consumption
+    SUPPLY_CONSUMPTION_PER_CREW: 0.07,     // 0.07 units of food/water per crew per day
+
+    // Combat system
+    COMBAT_PLAYER_RANDOM_FACTOR: 20,       // Random factor in player combat power
+    COMBAT_PIRATE_BASE_POWER: 15,          // Base pirate combat power
+    COMBAT_PIRATE_RANDOM_FACTOR: 25,       // Random factor in pirate combat power
+
+    // Ship durability thresholds
+    DURABILITY_CRITICAL_THRESHOLD: 0.3,    // 30% - Critical damage threshold
+    DURABILITY_DAMAGED_THRESHOLD: 0.5,     // 50% - Damaged threshold
+    DURABILITY_SPEED_CRITICAL_MODIFIER: 0.5,  // 50% speed when critical
+    DURABILITY_SPEED_DAMAGED_MODIFIER: 0.75,  // 75% speed when damaged
+
+    // Disaster recovery
+    DISASTER_MIN_RECOVERY: 0.3,            // 30% minimum stock recovery during disaster
+
+    // Repair costs
+    REPAIR_COST_PER_DURABILITY: 5          // Gold cost per durability point
+};
+
 // Autopilot configuration constants
 export const AUTOPILOT_CONFIG = {
     SAFETY_RESERVE: 50,            // Reserve gold for emergencies (reduced for more aggressive trading)
@@ -725,6 +753,7 @@ export const DISASTERS = {
 // CommonJS support for tests
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
+        GAME_BALANCE,
         AUTOPILOT_CONFIG,
         ports,
         portDistances,
