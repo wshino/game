@@ -9,7 +9,21 @@ import { addLog } from '../utils/logger.js';
 const TRADE_TIME_OVERHEAD = 2; // 取引処理にかかる時間（ゲーム日数）
 
 export function calculateTimeEfficiency(totalProfit, estimatedDays) {
+    // Validate inputs to prevent division by zero and NaN
+    if (typeof totalProfit !== 'number' || typeof estimatedDays !== 'number') {
+        return 0;
+    }
+    if (!Number.isFinite(totalProfit) || !Number.isFinite(estimatedDays)) {
+        return 0;
+    }
+
     const totalTime = estimatedDays + TRADE_TIME_OVERHEAD;
+
+    // Guard against division by zero
+    if (totalTime <= 0) {
+        return 0;
+    }
+
     return totalProfit / totalTime;
 }
 

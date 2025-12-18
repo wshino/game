@@ -1,5 +1,5 @@
 import { gameState, portInventory } from '../core/game-state.js';
-import { DISASTERS, ports } from '../core/constants.js';
+import { DISASTERS, ports, GAME_BALANCE } from '../core/constants.js';
 import { addLog } from '../utils/logger.js';
 
 /**
@@ -95,6 +95,11 @@ export function updateDisasters(daysPassed) {
  * @returns {number} - The price multiplier (1 = normal)
  */
 export function getDisasterPriceMultiplier(portId) {
+    // Validate input
+    if (!portId || typeof portId !== 'string') {
+        return 1;
+    }
+
     const disaster = gameState.portDisasters[portId];
     if (!disaster) {
         return 1;
@@ -102,6 +107,11 @@ export function getDisasterPriceMultiplier(portId) {
 
     const disasterInfo = DISASTERS[disaster.type];
     if (!disasterInfo) {
+        return 1;
+    }
+
+    // Guard against division by zero
+    if (disasterInfo.duration <= 0) {
         return 1;
     }
 
@@ -122,6 +132,11 @@ export function getDisasterPriceMultiplier(portId) {
  * @returns {number} - The stock recovery multiplier (1 = normal)
  */
 export function getDisasterStockMultiplier(portId) {
+    // Validate input
+    if (!portId || typeof portId !== 'string') {
+        return 1;
+    }
+
     const disaster = gameState.portDisasters[portId];
     if (!disaster) {
         return 1;
@@ -132,12 +147,16 @@ export function getDisasterStockMultiplier(portId) {
         return 1;
     }
 
+    // Guard against division by zero
+    if (disasterInfo.duration <= 0) {
+        return 1;
+    }
+
     // Calculate how much of the disaster effect remains
     const recoveryProgress = 1 - (disaster.remainingDays / disasterInfo.duration);
-    const effectStrength = 1 - recoveryProgress;
 
-    // Stock recovery is reduced during disaster (min 0.3, recovers over time)
-    const minRecovery = 0.3;
+    // Stock recovery is reduced during disaster (min 30%, recovers over time)
+    const minRecovery = GAME_BALANCE.DISASTER_MIN_RECOVERY;
     return minRecovery + (1 - minRecovery) * recoveryProgress;
 }
 

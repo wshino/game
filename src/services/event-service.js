@@ -1,5 +1,5 @@
 import { gameState } from '../core/game-state.js';
-import { RANDOM_EVENTS, TREASURES, RARITY_CONFIG, goods } from '../core/constants.js';
+import { RANDOM_EVENTS, TREASURES, RARITY_CONFIG, goods, GAME_BALANCE } from '../core/constants.js';
 import { addLog } from '../utils/logger.js';
 
 // UI callback functions
@@ -14,8 +14,13 @@ export function setEventUICallbacks(updateAllFn, saveGameFn) {
 
 // Check if a random event should occur during voyage
 export function checkForRandomEvent(daysElapsed) {
+    // Validate input
+    if (typeof daysElapsed !== 'number' || daysElapsed < 0) {
+        return null;
+    }
+
     // Only trigger event once per voyage day, with some randomness
-    if (Math.random() > 0.4) return null; // 40% base chance per check
+    if (Math.random() > GAME_BALANCE.EVENT_BASE_PROBABILITY) return null;
 
     // Calculate luck modifier from treasures
     const luckMod = gameState.activeEffects.luckBonus || 0;
@@ -87,9 +92,9 @@ function processPirateEvent(choiceId, result) {
             // Check for phoenix feather
             const hasPhoenixFeather = (gameState.treasures.phoenixFeather || 0) > 0;
 
-            // Combat calculation
-            const playerPower = gameState.ship.combatPower + (Math.random() * 20);
-            const piratePower = 15 + (Math.random() * 25);
+            // Combat calculation using balanced constants
+            const playerPower = gameState.ship.combatPower + (Math.random() * GAME_BALANCE.COMBAT_PLAYER_RANDOM_FACTOR);
+            const piratePower = GAME_BALANCE.COMBAT_PIRATE_BASE_POWER + (Math.random() * GAME_BALANCE.COMBAT_PIRATE_RANDOM_FACTOR);
             const luckMod = gameState.activeEffects.luckBonus || 0;
 
             const win = hasPhoenixFeather || (playerPower + luckMod * 10) > piratePower;
@@ -475,7 +480,7 @@ export function addTreasure(treasureId) {
 function applyPassiveTreasureEffect(treasure) {
     switch (treasure.effect.type) {
         case 'luck_bonus':
-            gameState.activeEffects.luckBonus = Math.min(0.5,
+            gameState.activeEffects.luckBonus = Math.min(GAME_BALANCE.EVENT_LUCK_MAX_BONUS,
                 (gameState.activeEffects.luckBonus || 0) + treasure.effect.value);
             break;
         case 'pirate_protection':
@@ -593,12 +598,12 @@ export function repairShip(portId) {
 export function getEffectiveSpeed() {
     let speed = gameState.ship.speed + gameState.ship.speedBonus;
 
-    // Speed penalty for low durability
+    // Speed penalty for low durability using balanced constants
     const durabilityRatio = gameState.ship.durability / gameState.ship.maxDurability;
-    if (durabilityRatio < 0.3) {
-        speed *= 0.5; // 50% speed when critically damaged
-    } else if (durabilityRatio < 0.5) {
-        speed *= 0.75; // 75% speed when damaged
+    if (durabilityRatio < GAME_BALANCE.DURABILITY_CRITICAL_THRESHOLD) {
+        speed *= GAME_BALANCE.DURABILITY_SPEED_CRITICAL_MODIFIER; // 50% speed when critically damaged
+    } else if (durabilityRatio < GAME_BALANCE.DURABILITY_DAMAGED_THRESHOLD) {
+        speed *= GAME_BALANCE.DURABILITY_SPEED_DAMAGED_MODIFIER; // 75% speed when damaged
     }
 
     return speed;
