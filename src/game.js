@@ -34,7 +34,7 @@ import {
 } from './services/event-service.js';
 
 // UI
-import { updateAll, setUICallbacks as setUIUpdaterCallbacks } from './ui/ui-updater.js';
+import { updateAll, setUICallbacks as setUIUpdaterCallbacks, initTradeHistoryTabs } from './ui/ui-updater.js';
 import { updateAutopilotUI, showAutopilotReport, closeAutopilotReport, toggleAutopilot } from './ui/autopilot-ui.js';
 
 // Initialize game
@@ -52,6 +52,9 @@ function initGame() {
     if (versionElement) {
         versionElement.textContent = `v${VERSION}`;
     }
+
+    // Initialize trade history tabs
+    initTradeHistoryTabs();
 
     // Load game or start new game
     const loaded = loadGame();

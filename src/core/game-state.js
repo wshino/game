@@ -85,6 +85,8 @@ export const gameState = {
         nagasaki: null
     },
     // Statistics tracking
+    // Trade history for analysis
+    tradeHistory: [],  // Array of { type: 'buy'|'sell', goodId, quantity, price, port, gameTime, timestamp }
     statistics: {
         totalGoldEarned: 0,        // 累計獲得金額
         totalVoyages: 0,           // 累計航海数

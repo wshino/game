@@ -8,6 +8,27 @@ import { saveGame } from './save-service.js';
 // UI callback functions
 let updateAll;
 
+// Add trade record to history
+function addTradeRecord(type, goodId, quantity, unitPrice, totalAmount) {
+    const record = {
+        type,           // 'buy' or 'sell'
+        goodId,
+        quantity,
+        unitPrice,
+        totalAmount,
+        port: gameState.currentPort,
+        gameTime: gameState.gameTime,
+        timestamp: Date.now()
+    };
+
+    gameState.tradeHistory.push(record);
+
+    // Keep only last 100 records to prevent excessive storage
+    if (gameState.tradeHistory.length > 100) {
+        gameState.tradeHistory.shift();
+    }
+}
+
 // Set UI callback functions (call this from main game initialization)
 export function setUICallbacks(updateAllFn) {
     updateAll = updateAllFn;
@@ -39,6 +60,9 @@ export function buyGood(goodId) {
 
     const good = goods[goodId];
     addLog(`✅ ${good.emoji} ${good.name}を${price}Gで購入しました。(残り在庫: ${getPortStock(gameState.currentPort, goodId)})`);
+
+    // Record trade
+    addTradeRecord('buy', goodId, 1, price, price);
 
     updateAll();
 }
@@ -82,6 +106,9 @@ export function buyAllGood(goodId) {
 
     addLog(`✅ ${good.emoji} ${good.name}を${maxCanBuy}個、合計${totalCost}Gで購入しました。(残り在庫: ${getPortStock(gameState.currentPort, goodId)})`);
 
+    // Record trade
+    addTradeRecord('buy', goodId, maxCanBuy, price, totalCost);
+
     updateAll();
 }
 
@@ -98,6 +125,9 @@ export function sellGood(goodId) {
 
     const good = goods[goodId];
     addLog(`💰 ${good.emoji} ${good.name}を${price}Gで売却しました。`);
+
+    // Record trade
+    addTradeRecord('sell', goodId, 1, price, price);
 
     // Add animation to gold
     const goldElement = document.getElementById('gold');
@@ -123,6 +153,9 @@ export function sellAllGood(goodId) {
 
     const good = goods[goodId];
     addLog(`💰 ${good.emoji} ${good.name}を${quantity}個、合計${totalRevenue}Gで売却しました。`);
+
+    // Record trade
+    addTradeRecord('sell', goodId, quantity, price, totalRevenue);
 
     // Add animation to gold
     const goldElement = document.getElementById('gold');
