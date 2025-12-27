@@ -193,6 +193,9 @@ export function loadGame() {
                 gameState.statistics.treasuresFound = 0;
             }
 
+            // Load trade history (with backward compatibility)
+            gameState.tradeHistory = loadedState.tradeHistory || [];
+
             // Load treasures (with backward compatibility)
             gameState.treasures = loadedState.treasures || {};
 

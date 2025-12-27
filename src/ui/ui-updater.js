@@ -448,6 +448,171 @@ export function updateUpgrades() {
     }
 }
 
+// Update trade history display
+export function updateTradeHistory() {
+    const historyContent = document.getElementById('trade-history-content');
+    const analysisContent = document.getElementById('trade-analysis-content');
+    if (!historyContent || !analysisContent) return;
+
+    const history = gameState.tradeHistory || [];
+
+    // Update history tab
+    if (history.length === 0) {
+        historyContent.innerHTML = '<div class="trade-empty">まだ取引履歴がありません</div>';
+    } else {
+        // Show newest first (reverse order)
+        const reversedHistory = [...history].reverse();
+        historyContent.innerHTML = `
+            <div class="trade-history-list">
+                ${reversedHistory.map(record => {
+                    const good = goods[record.goodId];
+                    const port = ports[record.port];
+                    const typeLabel = record.type === 'buy' ? '購入' : '売却';
+                    const amountPrefix = record.type === 'buy' ? '-' : '+';
+                    const date = new Date(record.timestamp);
+                    const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+                    return `
+                        <div class="trade-record ${record.type}">
+                            <div class="trade-record-info">
+                                <span class="trade-record-type ${record.type}">${typeLabel}</span>
+                                <div class="trade-record-details">
+                                    <span class="trade-record-good">${good?.emoji || ''} ${good?.name || record.goodId} x${record.quantity}</span>
+                                    <span class="trade-record-meta">${port?.emoji || ''} ${port?.name || record.port} | ${record.gameTime}日目 ${timeStr}</span>
+                                </div>
+                            </div>
+                            <span class="trade-record-amount ${record.type}">${amountPrefix}${record.totalAmount.toLocaleString()}G</span>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    // Update analysis tab
+    updateTradeAnalysis(analysisContent, history);
+}
+
+// Update trade analysis
+function updateTradeAnalysis(container, history) {
+    if (history.length === 0) {
+        container.innerHTML = '<div class="trade-empty">取引データがありません</div>';
+        return;
+    }
+
+    // Calculate summary statistics
+    let totalBuy = 0;
+    let totalSell = 0;
+    let buyCount = 0;
+    let sellCount = 0;
+    const goodsStats = {};
+
+    for (const record of history) {
+        if (record.type === 'buy') {
+            totalBuy += record.totalAmount;
+            buyCount += record.quantity;
+        } else {
+            totalSell += record.totalAmount;
+            sellCount += record.quantity;
+        }
+
+        // Track per-good statistics
+        if (!goodsStats[record.goodId]) {
+            goodsStats[record.goodId] = { bought: 0, sold: 0, buyAmount: 0, sellAmount: 0 };
+        }
+        if (record.type === 'buy') {
+            goodsStats[record.goodId].bought += record.quantity;
+            goodsStats[record.goodId].buyAmount += record.totalAmount;
+        } else {
+            goodsStats[record.goodId].sold += record.quantity;
+            goodsStats[record.goodId].sellAmount += record.totalAmount;
+        }
+    }
+
+    const netProfit = totalSell - totalBuy;
+    const profitClass = netProfit >= 0 ? 'profit' : 'loss';
+
+    // Generate goods table
+    const goodsEntries = Object.entries(goodsStats)
+        .map(([goodId, stats]) => ({
+            goodId,
+            good: goods[goodId],
+            ...stats,
+            profit: stats.sellAmount - stats.buyAmount
+        }))
+        .sort((a, b) => b.profit - a.profit);
+
+    container.innerHTML = `
+        <div class="trade-analysis">
+            <div class="analysis-summary">
+                <div class="analysis-card">
+                    <div class="analysis-card-label">総購入額</div>
+                    <div class="analysis-card-value">-${totalBuy.toLocaleString()}G</div>
+                </div>
+                <div class="analysis-card">
+                    <div class="analysis-card-label">総売却額</div>
+                    <div class="analysis-card-value">+${totalSell.toLocaleString()}G</div>
+                </div>
+                <div class="analysis-card ${profitClass}">
+                    <div class="analysis-card-label">純利益</div>
+                    <div class="analysis-card-value">${netProfit >= 0 ? '+' : ''}${netProfit.toLocaleString()}G</div>
+                </div>
+                <div class="analysis-card">
+                    <div class="analysis-card-label">取引回数</div>
+                    <div class="analysis-card-value">${history.length}回</div>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 15px; color: #1e3c72; border-bottom: 1px solid #ddd; padding-bottom: 5px;">商品別利益</h4>
+            <table class="analysis-goods-table">
+                <thead>
+                    <tr>
+                        <th>商品</th>
+                        <th>購入</th>
+                        <th>売却</th>
+                        <th>損益</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${goodsEntries.map(entry => `
+                        <tr>
+                            <td>${entry.good?.emoji || ''} ${entry.good?.name || entry.goodId}</td>
+                            <td>${entry.bought}個 (${entry.buyAmount.toLocaleString()}G)</td>
+                            <td>${entry.sold}個 (${entry.sellAmount.toLocaleString()}G)</td>
+                            <td class="${entry.profit >= 0 ? 'profit' : 'loss'}">${entry.profit >= 0 ? '+' : ''}${entry.profit.toLocaleString()}G</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+// Initialize trade history tabs
+export function initTradeHistoryTabs() {
+    const tabs = document.querySelectorAll('.trade-history-tabs .tab-btn');
+    const historyContent = document.getElementById('trade-history-content');
+    const analysisContent = document.getElementById('trade-analysis-content');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Update active tab
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Show corresponding content
+            const tabType = tab.dataset.tab;
+            if (tabType === 'history') {
+                historyContent.style.display = 'block';
+                analysisContent.style.display = 'none';
+            } else {
+                historyContent.style.display = 'none';
+                analysisContent.style.display = 'block';
+            }
+        });
+    });
+}
+
 // Update all UI elements
 export function updateAll() {
     updateStatusBar();
@@ -457,6 +622,7 @@ export function updateAll() {
     updateUpgrades();
     updateTreasures();
     updateRepairButton();
+    updateTradeHistory();
     if (updateAutopilotUI) {
         updateAutopilotUI();
     }

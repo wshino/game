@@ -1050,3 +1050,219 @@ header h1 {
     background: linear-gradient(90deg, #4caf50 0%, #8bc34a 100%);
     transition: width 0.5s ease;
 }
+
+/* Trade History Panel Styles */
+.trade-history-panel {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.trade-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #ffd700;
+}
+
+.trade-history-header h3 {
+    color: #1e3c72;
+    font-size: 1.3em;
+    margin: 0;
+}
+
+.trade-history-tabs {
+    display: flex;
+    gap: 5px;
+}
+
+.tab-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    background: #e0e0e0;
+    color: #666;
+    transition: all 0.3s;
+}
+
+.tab-btn:hover {
+    background: #d0d0d0;
+}
+
+.tab-btn.active {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+}
+
+.trade-history-content,
+.trade-analysis-content {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.trade-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.trade-record {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    border-left: 4px solid #1e3c72;
+    transition: all 0.3s;
+}
+
+.trade-record:hover {
+    background: #ebebeb;
+    transform: translateX(3px);
+}
+
+.trade-record.buy {
+    border-left-color: #4CAF50;
+}
+
+.trade-record.sell {
+    border-left-color: #ff9800;
+}
+
+.trade-record-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.trade-record-type {
+    font-size: 0.75em;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-weight: bold;
+    color: white;
+}
+
+.trade-record-type.buy {
+    background: #4CAF50;
+}
+
+.trade-record-type.sell {
+    background: #ff9800;
+}
+
+.trade-record-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.trade-record-good {
+    font-weight: bold;
+    color: #333;
+}
+
+.trade-record-meta {
+    font-size: 0.85em;
+    color: #666;
+}
+
+.trade-record-amount {
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.trade-record-amount.buy {
+    color: #d32f2f;
+}
+
+.trade-record-amount.sell {
+    color: #2e7d32;
+}
+
+.trade-empty {
+    text-align: center;
+    padding: 30px;
+    color: #888;
+    font-style: italic;
+}
+
+/* Trade Analysis Styles */
+.trade-analysis {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.analysis-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.analysis-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.analysis-card.profit {
+    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+}
+
+.analysis-card.loss {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+}
+
+.analysis-card-label {
+    font-size: 0.85em;
+    opacity: 0.9;
+    margin-bottom: 5px;
+}
+
+.analysis-card-value {
+    font-size: 1.4em;
+    font-weight: bold;
+}
+
+.analysis-goods-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.analysis-goods-table th,
+.analysis-goods-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.analysis-goods-table th {
+    background: #1e3c72;
+    color: white;
+    font-weight: bold;
+}
+
+.analysis-goods-table tr:hover {
+    background: #f5f5f5;
+}
+
+.analysis-goods-table .profit {
+    color: #2e7d32;
+    font-weight: bold;
+}
+
+.analysis-goods-table .loss {
+    color: #d32f2f;
+    font-weight: bold;
+}
